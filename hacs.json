@@ -1,0 +1,6 @@
+{
+  "name": "HOLM Music Card",
+  "render_readme": true,
+  "filename": "holm-music-card.js",
+  "homeassistant": "2025.1.0"
+}
