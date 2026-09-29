@@ -12,7 +12,7 @@
  * Tout se règle dans l'éditeur visuel.
  */
 (() => {
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
   const TYPES = {
     home: { label: "Accueil", icon: "mdi:home-variant-outline" },
     playlist: { label: "Playlists", icon: "mdi:playlist-music" },
@@ -38,7 +38,66 @@
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
     return (h ? `${h}:${String(m).padStart(2, "0")}` : `${m}`) + `:${String(x).padStart(2, "0")}`;
   };
-  const sized = (url, size = 300) => (url ? String(url).replace(/([?&])size=\d+/, `$1size=${size}`) : "");
+  // ------------------------------------------------------------------
+  //  Images : les pochettes de Music Assistant pointent vers son serveur
+  //  (http://ip:8095/imageproxy/...), inaccessible depuis une page HTTPS ou
+  //  depuis l'extérieur. On les fait passer par l'ingress de l'add-on
+  //  (même origine que Home Assistant), ou par une URL fournie (ma_image_url).
+  // ------------------------------------------------------------------
+  const IMG = (G.img = G.img || { base: null, state: "idle", custom: null });
+  const ADDON_SLUGS = ["d5369777_music_assistant", "d5369777_music_assistant_beta", "local_music_assistant"];
+  const proxied = (url) => {
+    if (!url) return "";
+    let u;
+    try { u = new URL(url, location.href); } catch (e) { return url; }
+    const i = u.pathname.indexOf("/imageproxy");
+    if (i < 0 || u.origin === location.origin) return url;
+    const base = IMG.custom || IMG.base;
+    return base ? base + u.pathname.slice(i + 1) + u.search : url;
+  };
+  // Music Assistant n'accepte que ces tailles (0 = originale)
+  const MA_SIZES = [80, 160, 256, 512, 1024];
+  const snap = (n) => MA_SIZES.find((x) => x >= n) || 0;
+  const sized = (url, size = 300) => (url ? proxied(String(url).replace(/([?&])size=\d+/, `$1size=${snap(size)}`)) : "");
+  const setIngressCookie = (session) => {
+    document.cookie = `ingress_session=${session};path=/api/hassio_ingress/;SameSite=Strict${location.protocol === "https:" ? ";Secure" : ""}`;
+  };
+  const initImages = async (hass, config) => {
+    if (config.ma_image_url) { IMG.custom = config.ma_image_url.replace(/\/+$/, "") + "/"; return; }
+    if (IMG.state !== "idle" || !hass || !hass.callWS) return;
+    if (!(hass.config && hass.config.components && hass.config.components.includes("hassio"))) { IMG.state = "none"; return; }
+    IMG.state = "loading";
+    const slugs = config.ma_addon ? [config.ma_addon] : ADDON_SLUGS;
+    let info = null;
+    for (const slug of slugs) {
+      try {
+        const r = await hass.callWS({ type: "supervisor/api", endpoint: `/addons/${slug}/info`, method: "get" });
+        if (r && r.ingress && r.ingress_url) { info = r; break; }
+      } catch (e) { /* suivant */ }
+    }
+    if (!info) { IMG.state = "none"; return; }
+    try {
+      const s = await hass.callWS({ type: "supervisor/api", endpoint: "/ingress/session", method: "post" });
+      if (!s || !s.session) throw new Error("no session");
+      IMG.session = s.session;
+      setIngressCookie(s.session);
+      IMG.base = info.ingress_url.replace(/\/+$/, "") + "/";
+      IMG.state = "ready";
+      IMG.hass = hass;
+      clearInterval(IMG.keep);
+      IMG.keep = setInterval(async () => {
+        try {
+          await IMG.hass.callWS({ type: "supervisor/api", endpoint: "/ingress/validate_session", method: "post", data: { session: IMG.session } });
+          setIngressCookie(IMG.session);
+        } catch (e) {
+          try { const n = await IMG.hass.callWS({ type: "supervisor/api", endpoint: "/ingress/session", method: "post" }); IMG.session = n.session; setIngressCookie(n.session); } catch (e2) { /* ignore */ }
+        }
+      }, 60000);
+      window.dispatchEvent(new CustomEvent("holm-music-images"));
+    } catch (e) {
+      IMG.state = "none";
+    }
+  };
   const artists = (it) => (it && (it.artists || []).map((a) => a.name).filter(Boolean).join(", ")) || (it && it.artist) || "";
   const haptic = (t = "light") => window.dispatchEvent(new CustomEvent("haptic", { detail: t }));
   const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -47,9 +106,10 @@
   //  Connexion directe (optionnelle) au serveur Music Assistant
   // ------------------------------------------------------------------
   class MaConn {
-    constructor(url, token) {
+    constructor(url, token, ingress = false) {
       this.url = url.replace(/\/+$/, "");
       this.token = token;
+      this.ingress = ingress; // via l'ingress de l'add-on : même origine, authentifié par Home Assistant
       this.pending = {};
       this.listeners = new Set();
       this.ready = null;
@@ -61,7 +121,7 @@
       this.ready = new Promise((resolve, reject) => {
         let ws;
         try {
-          ws = new WebSocket(this.url.replace(/^http/, "ws") + "/ws");
+          ws = new WebSocket(this.ingress ? location.origin.replace(/^http/, "ws") + this.url + "/ws" : this.url.replace(/^http/, "ws") + "/ws");
         } catch (e) {
           this.error = "Adresse invalide";
           this.ready = null;
@@ -79,6 +139,7 @@
           try { m = JSON.parse(ev.data); } catch (e) { return; }
           if (m.server_id && !authed) {
             this.server = m;
+            if (this.ingress) { authed = true; this.error = null; resolve(this); return; }
             this.send("auth", { token: this.token }, true).then(() => { authed = true; this.error = null; resolve(this); }).catch((e) => fail(e.message || "Jeton refusé"));
             return;
           }
@@ -112,11 +173,16 @@
     image(img, size = 128) {
       if (!img) return "";
       if (typeof img === "string") return sized(img, size);
-      if (img.remotely_accessible && /^https?:/.test(img.path)) return img.path;
-      const base = (this.server && this.server.base_url) || this.url;
-      return `${base}/imageproxy?path=${encodeURIComponent(encodeURIComponent(img.path))}&provider=${encodeURIComponent(img.provider)}&size=${size}`;
+      if (img.remotely_accessible && /^https:/.test(img.path)) return img.path;
+      const base = this.ingress ? this.url : (this.server && this.server.base_url) || this.url;
+      if (img.proxy_id) return proxied(`${base}/imageproxy/${img.proxy_id}?size=${snap(size)}`);
+      return proxied(`${base}/imageproxy?path=${encodeURIComponent(encodeURIComponent(img.path))}&provider=${encodeURIComponent(img.provider)}&size=${snap(size)}`);
     }
   }
+  // Connexion automatique par l'ingress de l'add-on (aucun réglage, fonctionne en HTTPS)
+  const ingressConn = () => (IMG.state === "ready" && IMG.base ? (G.conns.ingress = G.conns.ingress || new MaConn(IMG.base, null, true)) : null);
+  const insecure = (url) => location.protocol === "https:" && /^http:/i.test(url || "");
+  const imgOf = (o) => o && (o.image || (o.metadata && o.metadata.images && o.metadata.images.length && (o.metadata.images.find((i) => i.type === "thumb") || o.metadata.images[0]))) || null;
   const getConn = (url, token) => {
     if (!url || !token) return null;
     const k = url + "|" + token;
@@ -181,6 +247,7 @@
       const first = !this._hass;
       this._hass = hass;
       if (!this._config) return;
+      if (IMG.state === "idle" || this._config.ma_image_url) initImages(hass, this._config);
       if (!this._player || !hass.states[this._player]) this._player = this._config.entity || this._players()[0];
       const st = hass.states[this._player];
       const key = st && [st.state, st.last_updated, st.attributes.media_title, st.attributes.volume_level, st.attributes.is_volume_muted, st.attributes.shuffle, st.attributes.repeat, st.attributes.entity_picture_local, st.attributes.group_members && st.attributes.group_members.join()].join("|");
@@ -191,10 +258,21 @@
     }
     connectedCallback() {
       this._tick = setInterval(() => this._progress(), 1000);
+      if (!this._onImg) this._onImg = () => {
+        this._fixImages();
+        if (this._conn()) { this._listen(); if (this._tab === "queue") this._loadQueue(); }
+      };
+      window.addEventListener("holm-music-images", this._onImg);
+      if (this.shadowRoot && !this._errHook) {
+        this._errHook = true;
+        this.shadowRoot.addEventListener("error", (e) => { const t = e.target; if (t && t.tagName === "IMG" && t.id !== "artimg") t.classList.add("broken"); }, true);
+        this.shadowRoot.addEventListener("load", (e) => { const t = e.target; if (t && t.tagName === "IMG") t.classList.remove("broken"); }, true);
+      }
       if (this._conn()) this._listen();
     }
     disconnectedCallback() {
       clearInterval(this._tick);
+      window.removeEventListener("holm-music-images", this._onImg);
       if (this._unlisten) this._unlisten();
       this._unlisten = null;
     }
@@ -208,6 +286,10 @@
       return list.filter((id) => h.states[id] && h.states[id].state !== "unavailable");
     }
     _st() { return this._hass && this._hass.states[this._player]; }
+    _fixImages() {
+      if (!this.shadowRoot) return;
+      this.shadowRoot.querySelectorAll("img").forEach((i) => { const src = i.getAttribute("src"); const n = proxied(src); if (n && n !== src) i.src = n; });
+    }
     _entry() {
       if (this._config.config_entry_id) return this._config.config_entry_id;
       const h = this._hass, e = h.entities && h.entities[this._player];
@@ -217,8 +299,9 @@
     }
     _conn() {
       const c = this._config;
-      if (c.ma_url && c.ma_token) return getConn(c.ma_url, c.ma_token);
-      return G.defaultMa ? getConn(G.defaultMa.url, G.defaultMa.token) : null;
+      if (c.ma_url && c.ma_token && !insecure(c.ma_url)) return getConn(c.ma_url, c.ma_token);
+      if (G.defaultMa && !insecure(G.defaultMa.url)) return getConn(G.defaultMa.url, G.defaultMa.token);
+      return ingressConn();
     }
     _listen() {
       const c = this._conn();
@@ -455,7 +538,7 @@
       el.classList.toggle("show", !!n);
       if (!n) return;
       const m = n.media_item || {};
-      el.innerHTML = `<span class="lbl">À suivre</span><img src="${esc(sized(m.image || (m.album && m.album.image), 96))}" alt=""><span class="nx"><b>${esc(m.name || n.name)}</b><small>${esc(artists(m))}</small></span><ha-icon icon="mdi:chevron-right"></ha-icon>`;
+      el.innerHTML = `<span class="lbl">À suivre</span>${(m.image || (m.album && m.album.image)) ? `<img src="${esc(sized(m.image || (m.album && m.album.image), 96))}" alt="">` : `<span class="noimg"><ha-icon icon="mdi:music-note"></ha-icon></span>`}<span class="nx"><b>${esc(m.name || n.name)}</b><small>${esc(artists(m))}</small></span><ha-icon icon="mdi:chevron-right"></ha-icon>`;
     }
     async _act(act, el) {
       const st = this._st();
@@ -533,7 +616,7 @@
     }
     _qRow(it, i, cur) {
       const m = it.media_item || {};
-      const img = this._qConn ? this._qConn.image(it.image || m.image || (m.album && m.album.image), 96) : sized(m.image || (m.album && m.album.image), 96);
+      const img = this._qConn ? this._qConn.image(imgOf(it) || imgOf(m) || imgOf(m.album), 96) : sized(m.image || (m.album && m.album.image), 96);
       const past = i < cur;
       return `<div class="qrow${i === cur ? " cur" : ""}${past ? " past" : ""}" data-i="${i}" data-id="${esc(it.queue_item_id)}">
         <button class="qmain" data-q="play"><span class="thumb">${img ? `<img src="${esc(img)}" loading="lazy" alt="">` : `<ha-icon icon="mdi:music-note"></ha-icon>`}${i === cur ? `<span class="eq on mini"><i></i><i></i><i></i></span>` : ""}</span>
@@ -1036,6 +1119,9 @@
       .upnext.show { display: flex; }
       .upnext .lbl { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--acc); writing-mode: vertical-rl; transform: rotate(180deg); }
       .upnext img { width: 38px; height: 38px; border-radius: 9px; object-fit: cover; background: rgba(255,255,255,.08); }
+      .upnext .noimg { flex: 0 0 38px; width: 38px; height: 38px; border-radius: 9px; display: grid; place-items: center; background: rgba(255,255,255,.08); color: rgba(255,255,255,.4); }
+      .upnext .noimg ha-icon { --mdc-icon-size: 20px; }
+      img.broken { opacity: 0 !important; }
       .upnext .nx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
       .upnext b, .qt b { font-size: 13.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .upnext small, .qt small { font-size: 11.5px; color: rgba(230,240,245,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1186,11 +1272,12 @@
         .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); opacity: 0; transition: opacity .3s; }
         .box { position: relative; width: min(440px, calc(100vw - 16px)); transform: translateY(40px) scale(.96); opacity: 0; transition: transform .45s cubic-bezier(.3,1.3,.5,1), opacity .3s; }
         :host(.in) .scrim { opacity: 1; } :host(.in) .box { transform: none; opacity: 1; }
-        .x { position: absolute; top: 10px; right: 10px; z-index: 10; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(0,0,0,.4); color: #fff; display: grid; place-items: center; cursor: pointer; }
+        .x { position: absolute; top: -48px; right: 4px; z-index: 10; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); background: rgba(20,28,36,.75); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.4); transition: transform .2s; }
+        .x:hover { transform: scale(1.08); } .x:active { transform: scale(.92); }
         @media (max-width: 600px) { :host { place-items: end center; } .box { width: 100vw; } .box holm-music-card { --ha-card-border-radius: 24px 24px 0 0; } }
       </style><div class="scrim"></div><div class="box"><button class="x" title="Fermer"><ha-icon icon="mdi:close"></ha-icon></button></div>`;
       const card = document.createElement("holm-music-card");
-      const h = Math.min(720, Math.round(window.innerHeight * (window.innerWidth <= 600 ? 0.9 : 0.86)));
+      const h = Math.min(720, Math.round(window.innerHeight * (window.innerWidth <= 600 ? 0.86 : 0.84)) - 8);
       card.setConfig({ ...config, height: h });
       card.hass = hass;
       this._card = card;
@@ -1245,9 +1332,12 @@
           { name: "show_players", selector: { boolean: {} } },
           { name: "players", selector: { entity: { multiple: true, filter: { domain: "media_player", integration: "music_assistant" } } } },
         ] },
-        { type: "expandable", name: "", title: "Connexion directe à Music Assistant (file complète)", icon: "mdi:link-variant", schema: [
+        { type: "expandable", name: "", title: "Serveur Music Assistant séparé (hors add-on)", icon: "mdi:link-variant", schema: [
           { name: "ma_url", selector: { text: { type: "url" } } },
           { name: "ma_token", selector: { text: { type: "password" } } },
+        ] },
+        { type: "expandable", name: "", title: "Pochettes (avancé)", icon: "mdi:image-outline", schema: [
+          { name: "ma_image_url", selector: { text: { type: "url" } } },
         ] },
       ];
       const L = {
@@ -1255,9 +1345,12 @@
         dynamic_color: "Couleurs tirées de la pochette", accent: "Couleur d'accent (par défaut)", height: "Hauteur de la carte",
         library_types: "Rubriques de la bibliothèque", show_players: "Onglet Enceintes (multiroom)", players: "Enceintes proposées (vide = toutes)",
         ma_url: "Adresse de Music Assistant (ex. http://192.168.1.10:8095)", ma_token: "Jeton d'accès Music Assistant",
+        ma_image_url: "Adresse HTTPS des images Music Assistant (facultatif)",
       };
       const H = {
-        ma_token: "Music Assistant → Paramètres → Profil → Jetons d'accès. Donne la file complète (réordonner, supprimer, enregistrer en playlist).",
+        ma_url: "Inutile avec l'add-on Music Assistant : la carte s'y connecte automatiquement via Home Assistant. À renseigner seulement pour un serveur séparé.",
+        ma_token: "Music Assistant → Paramètres → Profil → Jetons d'accès (serveur séparé uniquement).",
+        ma_image_url: "Inutile avec l'add-on Music Assistant (les pochettes passent automatiquement par Home Assistant). Sinon : l'adresse HTTPS de votre serveur Music Assistant, joignable par le navigateur.",
         players: "Laissez vide pour proposer toutes les enceintes Music Assistant.",
       };
       f.computeLabel = (s) => L[s.name] || s.name;

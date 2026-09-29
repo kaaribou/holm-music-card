@@ -35,6 +35,7 @@ HOLM Music Card exploite **toutes les possibilités de [Music Assistant](https:/
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [File d'attente complète (connexion directe)](#file-dattente-complète-connexion-directe)
+- [Pochettes](#pochettes)
 - [Utilisation avec HOLM Navbar Card](#utilisation-avec-holm-navbar-card)
 - [Exemples YAML](#exemples-yaml)
 - [FAQ / dépannage](#faq--dépannage)
@@ -87,6 +88,7 @@ Ajoutez la carte **HOLM Musique** depuis le sélecteur de cartes, choisissez vot
 | `show_players` | Onglet **Enceintes** | `true` |
 | `players` | Lecteurs proposés (vide = tous ceux de Music Assistant) | tous |
 | `ma_url` / `ma_token` | Connexion directe à Music Assistant (voir ci-dessous) | — |
+| `ma_image_url` | Adresse HTTPS des images, si Music Assistant n'est pas l'add-on (voir [Pochettes](#pochettes)) | — |
 
 ---
 
@@ -102,6 +104,15 @@ Pour afficher **toute la file** et pouvoir la réorganiser (déplacer, lire ensu
 La connexion est partagée par toutes les cartes de la page (il suffit de la renseigner une fois).
 
 > 🔒 Le jeton est stocké dans la configuration du tableau de bord : ne le renseignez que sur un dashboard réservé à votre foyer.
+
+---
+
+## Pochettes
+
+Music Assistant fournit les pochettes depuis son propre serveur (par exemple `http://192.168.1.10:8095/imageproxy/…`). Un navigateur ne peut pas les afficher quand Home Assistant est ouvert en **HTTPS** ou **depuis l'extérieur**.
+
+- **Avec l'add-on Music Assistant** (Home Assistant OS / Supervised) : rien à faire, la carte fait passer automatiquement les images par Home Assistant (ingress de l'add-on).
+- **Serveur Music Assistant séparé** (Docker, autre machine) : renseignez dans **Pochettes (avancé)** l'adresse HTTPS de votre serveur Music Assistant joignable par le navigateur (`ma_image_url`).
 
 ---
 
@@ -155,6 +166,7 @@ players: [media_player.salon, media_player.cuisine, media_player.bureau]
 | La file ne montre que 2 titres | Normal sans connexion directe : renseignez l'URL et le jeton Music Assistant. |
 | La bibliothèque est vide | Vérifiez que Music Assistant a bien synchronisé vos services (dans l'interface de Music Assistant). |
 | Le favori ne fonctionne pas | Le titre doit venir d'un service qui accepte les favoris ; avec la connexion directe, l'ajout passe par Music Assistant. |
+| Pas de pochettes (carrés vides) | Avec l'add-on : rechargez la page. Sans l'add-on : renseignez `ma_image_url` (voir [Pochettes](#pochettes)). |
 | La nouvelle version ne s'affiche pas | Videz le cache (Ctrl + F5, ou « Recharger les ressources » dans l'application mobile). |
 
 ---
