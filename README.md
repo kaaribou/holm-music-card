@@ -14,13 +14,15 @@ HOLM Music Card exploite **toutes les possibilités de [Music Assistant](https:/
 ### En bref
 
 - 🎨 **Lecture en cours** : pochette carrée ou **vinyle qui tourne**, fond flouté et couleur d'accent **extraits de la pochette**, titres longs qui défilent, barre de progression interactive, aléatoire, répétition, favori, volume.
+- 🎤 **Paroles** dans le lecteur agrandi, **synchronisées** avec la musique quand Music Assistant les fournit (la ligne chantée s'illumine, un toucher sur une ligne y saute).
+- ➕ **Ajouter à une playlist** le titre en cours (ou un titre de la file d'attente), en choisissant parmi vos playlists modifiables.
 - 👆 **Gestes** : glisser sur la pochette = titre suivant / précédent, double-toucher = favori ♥.
 - 📜 **File d'attente** : titre en cours et suivants, lecture d'un titre, déplacement, « lire ensuite », suppression, vider la file, **enregistrer comme playlist**.
 - 📚 **Bibliothèque** : accueil (écoutés récemment, favoris, ajouts récents), playlists, albums, artistes, titres, radios, podcasts, livres audio ; tris, filtre favoris, fiches album / artiste / playlist.
 - 🔎 **Recherche globale**, dans votre bibliothèque **et** sur vos services de streaming.
 - ▶️ **Lire maintenant, ensuite, ajouter à la file, remplacer**, ou lancer un **mode radio** (titres similaires).
 - 🔊 **Enceintes** : changer de lecteur, **transférer la lecture** d'une pièce à l'autre, **regrouper** (multiroom), volume par enceinte.
-- 🪟 **Vue mini** : une barre compacte ; un toucher ouvre le lecteur complet en fenêtre.
+- 🪟 **Vue mini** : une barre compacte avec précédent, lecture / pause, suivant et **volume** (le curseur apparaît d'un toucher) ; un toucher sur le titre ouvre le lecteur complet en fenêtre.
 - 🧭 Utilisée par **[HOLM Navbar Card](https://github.com/kaaribou/holm-navbar-card)** pour le mini lecteur, la note de musique et les lecteurs en cours.
 
 | Lecture en cours | File d'attente | Bibliothèque | Enceintes |
@@ -88,6 +90,8 @@ Ajoutez la carte **HOLM Musique** depuis le sélecteur de cartes, choisissez vot
 | `dynamic_color` | Couleurs tirées de la pochette | `true` |
 | `accent` | Couleur d'accent (si couleurs dynamiques désactivées ou sans pochette) | `#26c6da` |
 | `height` | Hauteur de la carte complète (px) | `640` |
+| `mini_prev` | Vue mini : bouton Précédent | `true` |
+| `mini_volume` | Vue mini : réglage du volume | `true` |
 | `library_types` | Rubriques de la bibliothèque : `home`, `playlist`, `album`, `artist`, `track`, `radio`, `podcast`, `audiobook` | `home, playlist, album, artist, track, radio` |
 | `show_players` | Onglet **Enceintes** | `true` |
 | `players` | Lecteurs proposés (vide = tous ceux de Music Assistant) | tous |
@@ -182,4 +186,4 @@ Le lecteur vous plaît ? Vous pouvez m'offrir une bière 🍺
 Code sous licence **MIT** — © kaaribou. Voir le [CHANGELOG](CHANGELOG.md).
 Music Assistant est un projet indépendant ([music-assistant.io](https://music-assistant.io/)).
 
-Fait partie de la collection **HOLM** : [HOLM Navbar Card](https://github.com/kaaribou/holm-navbar-card) · [Carburant HOLM](https://github.com/kaaribou/carburant-holm).
+Fait partie de la collection **HOLM** : [HOLM Navbar Card](https://github.com/kaaribou/holm-navbar-card) · [HOLM Sentinel Card](https://github.com/kaaribou/holm-sentinel-card) · [Carburant HOLM](https://github.com/kaaribou/carburant-holm).

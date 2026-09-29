@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+- **Paroles** dans le lecteur agrandi (bouton micro en haut à droite) : synchronisées avec la musique quand Music Assistant les fournit, la ligne en cours s'illumine et un toucher sur une ligne y saute ; sinon paroles simples. (#4)
+- **Ajouter à une playlist** : bouton ➕ à côté du cœur pour ajouter le titre en cours à l'une de vos playlists modifiables, et entrée « Ajouter à une playlist » sur chaque titre de la file d'attente. (#1)
+- **Vue mini** plus haute et plus complète : boutons Précédent, Lecture / pause, Suivant et **Volume** (le curseur remplace le titre quelques secondes). Options `mini_prev` et `mini_volume`. (#3)
+- **Vue mini** : la carte ne déborde plus sur la carte du dessous (hauteur automatique dans les tableaux de bord en sections). (#2)
+- Connexion à Music Assistant plus robuste : une connexion coupée est rouverte automatiquement.
+
 ## 1.1.0
 - **File d'attente complète automatique** avec l'add-on Music Assistant : la carte se connecte à Music Assistant via Home Assistant (ingress), sans adresse ni jeton, en HTTPS et depuis l'extérieur.
 - Compatibilité avec les pochettes de Music Assistant 2.10 (`proxy_id`).

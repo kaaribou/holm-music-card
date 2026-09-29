@@ -12,7 +12,7 @@
  * Tout se règle dans l'éditeur visuel.
  */
 (() => {
-  const VERSION = "1.1.0";
+  const VERSION = "1.2.0";
   const TYPES = {
     home: { label: "Accueil", icon: "mdi:home-variant-outline" },
     playlist: { label: "Playlists", icon: "mdi:playlist-music" },
@@ -28,7 +28,7 @@
     name: "Nom (A→Z)", name_desc: "Nom (Z→A)", timestamp_added_desc: "Ajout récent", last_played_desc: "Écouté récemment",
     play_count_desc: "Les plus écoutés", year_desc: "Année", random: "Aléatoire",
   };
-  const DEFAULTS = { mode: "full", start_tab: "now", artwork: "square", dynamic_color: true, accent: "#26c6da", height: 640, library_types: DEFAULT_TYPES, show_players: true };
+  const DEFAULTS = { mode: "full", start_tab: "now", artwork: "square", dynamic_color: true, accent: "#26c6da", height: 640, library_types: DEFAULT_TYPES, show_players: true, mini_prev: true, mini_volume: true };
   const G = (window.__holmMusic = window.__holmMusic || { conns: {}, colors: {} });
 
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -153,6 +153,7 @@
         };
         ws.onerror = () => { if (!authed) fail("Serveur Music Assistant injoignable"); };
         ws.onclose = () => {
+          if (this.ws !== ws) return;
           this.ready = null;
           Object.values(this.pending).forEach((p) => p.reject(new Error("Connexion fermée")));
           this.pending = {};
@@ -168,7 +169,14 @@
         this.ws.send(JSON.stringify({ message_id, command, args }));
         setTimeout(() => { if (this.pending[message_id]) { delete this.pending[message_id]; reject(new Error("Délai dépassé")); } }, 20000);
       });
-      return raw ? run() : this.connect().then(run);
+      if (raw) return run();
+      // une connexion restée ouverte longtemps peut avoir été coupée : on la rouvre une fois
+      return this.connect().then(run).catch((e) => {
+        if (!/Connexion fermée|Délai dépassé/.test(e.message || "")) throw e;
+        try { this.ws && this.ws.close(); } catch (x) { /* déjà fermée */ }
+        this.ready = null;
+        return this.connect().then(run);
+      });
     }
     image(img, size = 128) {
       if (!img) return "";
@@ -241,7 +249,7 @@
       this._render();
     }
     getCardSize() { return this._config && this._config.mode === "mini" ? 1 : 10; }
-    getGridOptions() { return this._config && this._config.mode === "mini" ? { columns: 12, rows: 1, min_rows: 1 } : { columns: 12, min_columns: 6, rows: "auto" }; }
+    getGridOptions() { return this._config && this._config.mode === "mini" ? { columns: 12, min_columns: 6, rows: "auto" } : { columns: 12, min_columns: 6, rows: "auto" }; }
 
     set hass(hass) {
       const first = !this._hass;
@@ -384,12 +392,13 @@
       p.innerHTML = `
         <header class="np-head">
           <button class="player-chip" data-act="speakers"><ha-icon icon="mdi:speaker"></ha-icon><span id="pname"></span><ha-icon icon="mdi:chevron-down" class="chev"></ha-icon></button>
-          <div class="eq" id="eq"><i></i><i></i><i></i><i></i></div>
+          <div class="np-r"><div class="eq" id="eq"><i></i><i></i><i></i><i></i></div><button class="ly-btn" data-act="lyrics" id="b-lyr" title="Paroles"><ha-icon icon="mdi:microphone-variant"></ha-icon></button></div>
         </header>
         <div class="art-wrap" id="artwrap">
           <div class="art" id="art"><img id="artimg" alt=""><div class="hole"></div><div class="noart"><ha-icon icon="mdi:music-circle-outline"></ha-icon></div></div>
           <div class="heart" id="heart"><ha-icon icon="mdi:heart"></ha-icon></div>
         </div>
+        <div class="lyr" id="lyr"></div>
         <div class="meta">
           <div class="t marq" id="title"><span></span></div>
           <div class="a" id="artist"></div>
@@ -410,6 +419,7 @@
           <button class="sm" data-act="mute" id="b-mute"><ha-icon icon="mdi:volume-high"></ha-icon></button>
           <input type="range" id="vol" min="0" max="100" step="1">
           <button class="sm" data-act="fav" id="b-fav" title="Favori"><ha-icon icon="mdi:heart-outline"></ha-icon></button>
+          <button class="sm" data-act="addpl" id="b-addpl" title="Ajouter à une playlist"><ha-icon icon="mdi:playlist-plus"></ha-icon></button>
         </div>
         <button class="upnext" data-act="queue" id="upnext"></button>`;
       p.addEventListener("click", (e) => {
@@ -422,6 +432,10 @@
       vol.addEventListener("input", () => { this._fill(vol); this._volT = Date.now(); });
       vol.addEventListener("change", () => this._mp("volume_set", { volume_level: vol.value / 100 }));
       this._gestures(p.querySelector("#artwrap"));
+      p.querySelector("#lyr").addEventListener("click", (e) => {
+        const l = e.target.closest("[data-t]");
+        if (l) { haptic(); this._mp("media_seek", { seek_position: Number(l.dataset.t) }); this._lyrLine = -1; }
+      });
       this._updateNow();
     }
     _gestures(el) {
@@ -479,6 +493,7 @@
       $("dur").textContent = a.media_duration ? fmt(a.media_duration) : "";
       this._progress();
       this._upNext();
+      if (this._lyrOn && (a.media_content_id || a.media_title) !== this._lyrKey) this._loadLyrics();
     }
     _position(st) {
       const a = st.attributes;
@@ -499,6 +514,7 @@
       }
       const bar = r.getElementById("mbar");
       if (bar) bar.style.transform = `scaleX(${dur ? Math.min(1, pos / dur) : 0})`;
+      if (this._lyrOn) this._syncLyrics(pos);
     }
     _fill(inp) { inp.style.setProperty("--v", `${((inp.value - inp.min) / ((inp.max - inp.min) || 1)) * 100}%`); }
     async _applyColor(pic) {
@@ -554,10 +570,110 @@
         }
         case "mute": return this._mp("volume_mute", { is_volume_muted: !(st && st.attributes.is_volume_muted) });
         case "fav": return this._favorite();
+        case "lyrics": return this._toggleLyrics();
+        case "addpl": return this._addToPlaylist();
+        case "vol": return this._miniVol();
         case "queue": return this._setTab("queue");
         case "speakers": return this._config.show_players ? this._setTab("speakers") : this._pickPlayer();
       }
     }
+    // ---------------- morceau en cours (Music Assistant) ----------------
+    async _currentItem() {
+      const c = this._conn(), st = this._st(), qid = st && st.attributes.active_queue;
+      if (!c || !qid) throw new Error("Connexion à Music Assistant indisponible");
+      const q = await c.send("player_queues/get", { queue_id: qid });
+      const it = q && q.current_item, m = it && it.media_item;
+      if (!m || !m.uri) throw new Error("Aucun morceau en lecture");
+      return m;
+    }
+
+    // ---------------- ajouter à une playlist ----------------
+    async _addToPlaylist(item) {
+      const c = this._conn();
+      if (!c) return this._toast("Connexion à Music Assistant indisponible");
+      try {
+        const m = item || await this._currentItem();
+        const all = await c.send("music/playlists/library_items", { limit: 500, offset: 0, order_by: "name" });
+        const lists = (all || []).filter((p) => p.is_editable && !(p.provider_mappings || []).some((x) => /smart/.test(x.provider_domain || x.provider_instance || "")));
+        if (!lists.length) return this._toast("Aucune playlist modifiable");
+        this._sheet(`Ajouter « ${m.name} »`, "Choisissez une playlist", lists.map((p) => ["mdi:playlist-music", esc(p.name), String(p.item_id)]), async (id) => {
+          const pl = lists.find((p) => String(p.item_id) === id);
+          await c.send("music/playlists/add_playlist_tracks", { db_playlist_id: id, uris: [m.uri] });
+          this._toast(`Ajouté à « ${pl ? pl.name : "la playlist"} »`);
+          haptic("success");
+        });
+      } catch (err) { this._toast(err.message || "Action impossible"); }
+    }
+
+    // ---------------- paroles ----------------
+    _toggleLyrics() {
+      this._lyrOn = !this._lyrOn;
+      const p = this.shadowRoot.getElementById("p-now");
+      p.classList.toggle("lyon", this._lyrOn);
+      this.shadowRoot.getElementById("b-lyr").classList.toggle("act", this._lyrOn);
+      if (this._lyrOn) this._loadLyrics();
+    }
+    async _loadLyrics() {
+      const box = this.shadowRoot.getElementById("lyr"), st = this._st();
+      if (!box || !st) return;
+      const key = st.attributes.media_content_id || st.attributes.media_title;
+      this._lyrKey = key;
+      this._lyr = null; this._lyrLine = -1;
+      box.innerHTML = this._loading();
+      let text = "", lrc = "";
+      try {
+        const m = await this._currentItem();
+        const cache = (G.lyrics = G.lyrics || {});
+        let md = cache[m.uri];
+        if (!md) {
+          const full = await this._conn().send("music/item_by_uri", { uri: m.uri });
+          md = (full && full.metadata) || {};
+          cache[m.uri] = { lyrics: md.lyrics || "", lrc_lyrics: md.lrc_lyrics || "" };
+          md = cache[m.uri];
+        }
+        text = md.lyrics; lrc = md.lrc_lyrics;
+      } catch (err) {
+        if (this._lyrKey === key) box.innerHTML = `<div class="ly-empty"><ha-icon icon="mdi:microphone-off"></ha-icon><b>Paroles indisponibles</b><small>${esc(err.message || "")}</small></div>`;
+        return;
+      }
+      if (this._lyrKey !== key) return;
+      const lines = [];
+      if (lrc) {
+        lrc.split(/\r?\n/).forEach((l) => {
+          const tags = [...l.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)];
+          const txt = l.replace(/\[[^\]]*\]/g, "").trim();
+          tags.forEach((t) => lines.push({ t: Number(t[1]) * 60 + Number(t[2]), txt }));
+        });
+        lines.sort((a, b) => a.t - b.t);
+      }
+      if (lines.length) {
+        this._lyr = lines;
+        box.innerHTML = `<div class="ly-list synced">${lines.map((l, i) => `<p data-i="${i}" data-t="${l.t.toFixed(2)}">${esc(l.txt) || "♪"}</p>`).join("")}</div>`;
+        this._syncLyrics(this._position(st), true);
+      } else if (text) {
+        box.innerHTML = `<div class="ly-list">${text.split(/\r?\n/).map((l) => `<p>${esc(l) || "&nbsp;"}</p>`).join("")}</div>`;
+      } else {
+        box.innerHTML = `<div class="ly-empty"><ha-icon icon="mdi:microphone-off"></ha-icon><b>Pas de paroles pour ce titre</b><small>Music Assistant n'en a pas trouvé. Activez un fournisseur de paroles (LRCLIB) dans ses réglages pour en obtenir davantage.</small></div>`;
+      }
+    }
+    _syncLyrics(pos, force) {
+      const L = this._lyr;
+      if (!L) return;
+      let i = -1;
+      for (let k = 0; k < L.length; k++) { if (L[k].t <= pos + 0.3) i = k; else break; }
+      if (i === this._lyrLine && !force) return;
+      this._lyrLine = i;
+      const box = this.shadowRoot.getElementById("lyr");
+      if (!box) return;
+      box.querySelectorAll("p.on, p.past").forEach((p) => p.classList.remove("on", "past"));
+      box.querySelectorAll("p").forEach((p, k) => { if (k < i) p.classList.add("past"); });
+      const cur = box.querySelector(`p[data-i="${i}"]`);
+      if (cur) {
+        cur.classList.add("on");
+        box.scrollTo({ top: cur.offsetTop - box.clientHeight / 2 + cur.offsetHeight / 2, behavior: force ? "auto" : "smooth" });
+      }
+    }
+
     async _favorite() {
       const h = this._hass, e = h.entities[this._player];
       const btn = Object.keys(h.entities).find((id) => id.startsWith("button.") && h.entities[id].device_id === e.device_id && /favorite/.test(id) && h.states[id] && h.states[id].state !== "unavailable");
@@ -675,8 +791,10 @@
         i > 0 ? ["mdi:arrow-up", "Monter", "up"] : null,
         i < this._qItems.length - 1 ? ["mdi:arrow-down", "Descendre", "down"] : null,
         ["mdi:arrow-collapse-down", "Déplacer à la fin", "end"],
+        m.uri ? ["mdi:playlist-plus", "Ajouter à une playlist", "addpl"] : null,
         ["mdi:delete-outline", "Retirer de la file", "del", "danger"],
       ], async (k) => {
+        if (k === "addpl") return setTimeout(() => this._addToPlaylist(m), 350);
         const c = this._qConn, qid = this._st().attributes.active_queue, id = it.queue_item_id;
         const cmds = {
           play: ["player_queues/play_index", { queue_id: qid, index: id }],
@@ -988,9 +1106,13 @@
         this._built = true;
         r.innerHTML = `<style>${HolmMusicCard.css()}</style><ha-card class="mini" id="mini"><div class="bg" id="bg"></div>
           <button class="m-open" id="mopen"><span class="m-art"><img id="martimg" alt=""><ha-icon icon="mdi:music"></ha-icon></span><span class="m-txt"><b id="mt"></b><small id="ma"></small></span></button>
-          <div class="m-btns"><button data-act="play" id="mplay"><ha-icon icon="mdi:play"></ha-icon></button><button data-act="next"><ha-icon icon="mdi:skip-next"></ha-icon></button></div>
+          <div class="m-vol" id="mvol"><ha-icon icon="mdi:volume-high" id="mvolic"></ha-icon><input type="range" id="mvolr" min="0" max="100" step="1"></div>
+          <div class="m-btns">${this._config.mini_prev ? `<button data-act="prev" class="m-sm"><ha-icon icon="mdi:skip-previous"></ha-icon></button>` : ""}<button data-act="play" id="mplay" class="m-play"><ha-icon icon="mdi:play"></ha-icon></button><button data-act="next" class="m-sm"><ha-icon icon="mdi:skip-next"></ha-icon></button>${this._config.mini_volume ? `<button data-act="vol" class="m-sm" id="mvolb" title="Volume"><ha-icon icon="mdi:volume-high"></ha-icon></button>` : ""}</div>
           <i class="m-bar" id="mbar"></i></ha-card>`;
         r.querySelector(".m-btns").addEventListener("click", (e) => { const b = e.target.closest("[data-act]"); if (b) this._act(b.dataset.act); });
+        const vr = r.getElementById("mvolr");
+        vr.addEventListener("input", () => { this._fill(vr); this._volT = Date.now(); this._miniVolKeep(); });
+        vr.addEventListener("change", () => { this._mp("volume_set", { volume_level: vr.value / 100 }); this._miniVolKeep(); });
         r.getElementById("mopen").addEventListener("click", () => this._openPopup());
       }
       if (!st) return;
@@ -999,9 +1121,29 @@
       r.getElementById("ma").textContent = [a.media_artist, a.friendly_name].filter(Boolean).join(" · ");
       r.getElementById("mplay").innerHTML = `<ha-icon icon="${playing ? "mdi:pause" : "mdi:play"}"></ha-icon>`;
       r.getElementById("mini").classList.toggle("playing", playing);
+      const vr = r.getElementById("mvolr"), vl = a.volume_level || 0;
+      if (vr && (!this._volT || Date.now() - this._volT > 2500)) { vr.value = Math.round(vl * 100); this._fill(vr); }
+      const vic = a.is_volume_muted ? "mdi:volume-off" : vl < 0.35 ? "mdi:volume-low" : vl < 0.7 ? "mdi:volume-medium" : "mdi:volume-high";
+      const vb = r.getElementById("mvolb");
+      if (vb) vb.innerHTML = `<ha-icon icon="${vic}"></ha-icon>`;
+      r.getElementById("mvolic").setAttribute("icon", vic);
       const pic = a.entity_picture_local || a.entity_picture || "", img = r.getElementById("martimg");
       if (img.dataset.src !== pic) { img.dataset.src = pic; img.style.display = pic ? "" : "none"; if (pic) img.src = pic; this._applyColor(pic); }
       this._progress();
+    }
+    // volume de la vue mini : le curseur remplace le titre quelques secondes
+    _miniVol() {
+      const m = this.shadowRoot.getElementById("mini");
+      if (!m) return;
+      const on = !m.classList.contains("vol-on");
+      const btns = m.querySelector(".m-btns"), v = this.shadowRoot.getElementById("mvol"), art = m.querySelector(".m-art");
+      if (btns && v) { v.style.right = `${btns.offsetWidth + 14}px`; v.style.left = `${(art ? art.offsetWidth : 54) + 20}px`; }
+      m.classList.toggle("vol-on", on);
+      if (on) this._miniVolKeep(); else clearTimeout(this._mvT);
+    }
+    _miniVolKeep() {
+      clearTimeout(this._mvT);
+      this._mvT = setTimeout(() => { const m = this.shadowRoot && this.shadowRoot.getElementById("mini"); if (m) m.classList.remove("vol-on"); }, 4000);
     }
     _openPopup() {
       haptic();
@@ -1238,20 +1380,48 @@
       .sh-a ha-icon { color: var(--acc); }
       .sh-a.danger, .sh-a.danger ha-icon { color: #f87171; }
 
+      /* paroles */
+      .np-r { display: flex; align-items: center; gap: 8px; }
+      .ly-btn { width: 34px; height: 34px; border-radius: 12px; display: grid; place-items: center; background: rgba(255,255,255,.08); color: rgba(230,240,245,.8); transition: background .3s, color .3s; }
+      .ly-btn ha-icon { --mdc-icon-size: 19px; }
+      .ly-btn.act { background: var(--acc); color: #0b1016; }
+      .lyr { display: none; }
+      #p-now.lyon .art-wrap { display: none; }
+      #p-now.lyon .lyr { display: block; flex: 1 1 0 !important; min-height: 0; width: 100%; overflow-y: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); animation: lyin .4s ease; }
+      #p-now.lyon .lyr::-webkit-scrollbar { display: none; }
+      @keyframes lyin { from { opacity: 0; transform: translateY(10px); } }
+      .ly-list { padding: 30% 6px; text-align: center; }
+      .ly-list p { margin: 0 0 10px; font-size: 17px; font-weight: 700; line-height: 1.35; color: rgba(235,242,247,.85); }
+      .ly-list.synced p { color: rgba(235,242,247,.38); cursor: pointer; transition: color .4s, transform .4s, text-shadow .4s; transform-origin: center; }
+      .ly-list.synced p.past { color: rgba(235,242,247,.55); }
+      .ly-list.synced p.on { color: #fff; transform: scale(1.06); text-shadow: 0 0 18px color-mix(in srgb, var(--acc) 70%, transparent); }
+      .ly-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; padding: 20px; color: rgba(235,242,247,.7); }
+      .ly-empty ha-icon { --mdc-icon-size: 40px; color: var(--acc); opacity: .7; }
+      .ly-empty small { font-size: 12px; opacity: .7; max-width: 280px; }
+      .sh-box { max-height: 80%; overflow-y: auto; }
+
       /* mini */
-      .mini { display: flex; align-items: center; gap: 6px; height: 64px; padding: 0 8px 0 8px; border-radius: 20px; }
+      .mini { display: flex; align-items: center; gap: 6px; height: 76px; padding: 0 8px 0 10px; border-radius: 20px; }
       .mini .bg { filter: blur(30px) saturate(1.6) brightness(.45); }
       .m-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; text-align: left; height: 100%; }
-      .m-art { position: relative; flex: 0 0 46px; width: 46px; height: 46px; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: rgba(255,255,255,.08); color: rgba(255,255,255,.4); box-shadow: 0 4px 12px rgba(0,0,0,.35); }
+      .m-art { position: relative; flex: 0 0 54px; width: 54px; height: 54px; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: rgba(255,255,255,.08); color: rgba(255,255,255,.4); box-shadow: 0 4px 12px rgba(0,0,0,.35); }
       .m-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
       .mini.playing .m-art { animation: breathe 3s ease-in-out infinite; }
       @keyframes breathe { 50% { box-shadow: 0 4px 18px color-mix(in srgb, var(--acc) 60%, transparent); } }
       .m-txt { min-width: 0; display: flex; flex-direction: column; }
       .m-txt b { font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .m-txt small { font-size: 12px; color: var(--acc); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: color .6s; }
-      .m-btns { display: flex; gap: 2px; }
-      .m-btns button { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; transition: transform .15s; }
-      .m-btns button:first-child { background: var(--acc); color: #0b1016; }
+      .m-btns { display: flex; align-items: center; gap: 0; }
+      .m-btns button { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; transition: transform .15s, background .3s; }
+      .m-btns .m-play { width: 46px; height: 46px; margin: 0 2px; background: var(--acc); color: #0b1016; }
+      .m-btns .m-sm ha-icon { --mdc-icon-size: 22px; }
+      .mini.vol-on #mvolb { background: color-mix(in srgb, var(--acc) 30%, transparent); }
+      .m-vol { position: absolute; left: 76px; right: 190px; top: 50%; display: flex; align-items: center; gap: 8px; transform: translateY(-50%) scale(.96); opacity: 0; pointer-events: none; transition: opacity .25s, transform .3s cubic-bezier(.3,1.3,.5,1); }
+      .m-vol ha-icon { --mdc-icon-size: 20px; color: var(--acc); flex: 0 0 auto; }
+      .m-vol input { flex: 1; min-width: 0; }
+      .mini.vol-on .m-vol { opacity: 1; pointer-events: auto; transform: translateY(-50%); }
+      .mini.vol-on .m-txt { opacity: 0; }
+      .m-txt { transition: opacity .2s; }
       .m-btns button:active { transform: scale(.88); }
       .m-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--acc); transform-origin: left; transform: scaleX(0); transition: transform 1s linear; opacity: .9; }
       @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
@@ -1327,6 +1497,12 @@
           ] },
           { name: "height", selector: { number: { min: 420, max: 1000, step: 10, mode: "slider", unit_of_measurement: "px" } } },
         ] },
+        { type: "expandable", name: "", title: "Vue mini", icon: "mdi:dock-bottom", schema: [
+          { type: "grid", name: "", schema: [
+            { name: "mini_prev", selector: { boolean: {} } },
+            { name: "mini_volume", selector: { boolean: {} } },
+          ] },
+        ] },
         { type: "expandable", name: "", title: "Bibliothèque et enceintes", icon: "mdi:bookshelf", schema: [
           { name: "library_types", selector: { select: { multiple: true, mode: "list", options: Object.entries(TYPES).map(([k, v]) => ({ value: k, label: v.label })) } } },
           { name: "show_players", selector: { boolean: {} } },
@@ -1346,6 +1522,7 @@
         library_types: "Rubriques de la bibliothèque", show_players: "Onglet Enceintes (multiroom)", players: "Enceintes proposées (vide = toutes)",
         ma_url: "Adresse de Music Assistant (ex. http://192.168.1.10:8095)", ma_token: "Jeton d'accès Music Assistant",
         ma_image_url: "Adresse HTTPS des images Music Assistant (facultatif)",
+        mini_prev: "Bouton Précédent", mini_volume: "Réglage du volume",
       };
       const H = {
         ma_url: "Inutile avec l'add-on Music Assistant : la carte s'y connecte automatiquement via Home Assistant. À renseigner seulement pour un serveur séparé.",
