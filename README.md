@@ -23,9 +23,13 @@ HOLM Music Card exploite **toutes les possibilités de [Music Assistant](https:/
 - 🪟 **Vue mini** : une barre compacte ; un toucher ouvre le lecteur complet en fenêtre.
 - 🧭 Utilisée par **[HOLM Navbar Card](https://github.com/kaaribou/holm-navbar-card)** pour le mini lecteur, la note de musique et les lecteurs en cours.
 
-| Lecture en cours | Vue mini et lecteurs en cours (avec HOLM Navbar Card) |
-|---|---|
-| ![Lecture](docs/images/lecture.png) | ![Mini](docs/images/mini.png)<br><br>![Lecteurs en cours](docs/images/navbar-lecteurs.png) |
+| Lecture en cours | File d'attente | Bibliothèque | Enceintes |
+|---|---|---|---|
+| ![Lecture](docs/images/lecture.png) | ![File d'attente](docs/images/file.png) | ![Bibliothèque](docs/images/bibliotheque.png) | ![Enceintes](docs/images/enceintes.png) |
+
+**Vue mini**
+
+![Vue mini](docs/images/mini.png)
 
 ---
 
@@ -87,23 +91,17 @@ Ajoutez la carte **HOLM Musique** depuis le sélecteur de cartes, choisissez vot
 | `library_types` | Rubriques de la bibliothèque : `home`, `playlist`, `album`, `artist`, `track`, `radio`, `podcast`, `audiobook` | `home, playlist, album, artist, track, radio` |
 | `show_players` | Onglet **Enceintes** | `true` |
 | `players` | Lecteurs proposés (vide = tous ceux de Music Assistant) | tous |
-| `ma_url` / `ma_token` | Connexion directe à Music Assistant (voir ci-dessous) | — |
+| `ma_url` / `ma_token` | Serveur Music Assistant séparé uniquement (inutile avec l'add-on) | — |
 | `ma_image_url` | Adresse HTTPS des images, si Music Assistant n'est pas l'add-on (voir [Pochettes](#pochettes)) | — |
 
 ---
 
 ## File d'attente complète (connexion directe)
 
-Par défaut, la carte passe **uniquement par Home Assistant** : la file d'attente montre le titre en cours et le suivant.
+- **Avec l'add-on Music Assistant** (Home Assistant OS / Supervised) : **rien à faire**. La carte se connecte automatiquement à Music Assistant **via Home Assistant** : file complète (déplacer, lire ensuite, supprimer, vider, enregistrer comme playlist), en HTTPS comme depuis l'extérieur.
+- **Serveur Music Assistant séparé** (Docker, autre machine) : renseignez dans **Serveur Music Assistant séparé** l'adresse du serveur (`http://192.168.1.10:8095`) et un **jeton d'accès** créé dans Music Assistant. Sans cela, la file montre le titre en cours et le suivant.
 
-Pour afficher **toute la file** et pouvoir la réorganiser (déplacer, lire ensuite, supprimer, vider, enregistrer comme playlist), renseignez dans **Connexion directe à Music Assistant** :
-
-- **URL** : l'adresse de votre serveur Music Assistant, par exemple `http://192.168.1.10:8095` ;
-- **Jeton** : un jeton d'accès (*token*) créé dans Music Assistant.
-
-La connexion est partagée par toutes les cartes de la page (il suffit de la renseigner une fois).
-
-> 🔒 Le jeton est stocké dans la configuration du tableau de bord : ne le renseignez que sur un dashboard réservé à votre foyer.
+> 🔒 Le jeton est stocké dans la configuration du tableau de bord : ne le renseignez que sur un dashboard réservé à votre foyer. Une adresse `http://` ne fonctionne pas si Home Assistant est ouvert en HTTPS.
 
 ---
 
@@ -163,7 +161,7 @@ players: [media_player.salon, media_player.cuisine, media_player.bureau]
 | Problème | Solution |
 |---|---|
 | Aucun lecteur proposé dans l'éditeur | L'intégration **Music Assistant** doit être installée dans Home Assistant ; seuls ses lecteurs sont proposés. |
-| La file ne montre que 2 titres | Normal sans connexion directe : renseignez l'URL et le jeton Music Assistant. |
+| La file ne montre que 2 titres | Avec l'add-on : rechargez la page. Serveur séparé : renseignez l'adresse et le jeton Music Assistant. |
 | La bibliothèque est vide | Vérifiez que Music Assistant a bien synchronisé vos services (dans l'interface de Music Assistant). |
 | Le favori ne fonctionne pas | Le titre doit venir d'un service qui accepte les favoris ; avec la connexion directe, l'ajout passe par Music Assistant. |
 | Pas de pochettes (carrés vides) | Avec l'add-on : rechargez la page. Sans l'add-on : renseignez `ma_image_url` (voir [Pochettes](#pochettes)). |
