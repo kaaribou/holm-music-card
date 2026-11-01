@@ -12,21 +12,215 @@
  * Tout se règle dans l'éditeur visuel.
  */
 (() => {
-  const VERSION = "1.2.0";
+  // ---- HOLM i18n : textes écrits en français, traduits à l'affichage (en, de, es, it, nl, pt, pl) ----
+  // Langue : option `language` de la carte, sinon celle du profil Home Assistant ; anglais si la langue n'est pas traduite.
+  const HOLM_LANGS = ["en", "de", "es", "it", "nl", "pt", "pl"];
+  const LANG_NAMES = { fr: "Français", en: "English", de: "Deutsch", es: "Español", it: "Italiano", nl: "Nederlands", pt: "Português", pl: "Polski" };
+  const LOCALES = { fr: "fr-FR", en: "en-GB", de: "de-DE", es: "es-ES", it: "it-IT", nl: "nl-NL", pt: "pt-PT", pl: "pl-PL" };
+  const I18N = {
+    "Automatique (profil)": ["Automatic (profile)", "Automatisch (Profil)", "Automático (perfil)", "Automatica (profilo)", "Automatisch (profiel)", "Automático (perfil)", "Automatycznie (profil)"],
+    "Langue": ["Language", "Sprache", "Idioma", "Lingua", "Taal", "Idioma", "Język"],
+    "Titre": ["Title", "Titel", "Título", "Titolo", "Titel", "Título", "Tytuł"],
+    "Titre (optionnel)": ["Title (optional)", "Titel (optional)", "Título (opcional)", "Titolo (facoltativo)", "Titel (optioneel)", "Título (opcional)", "Tytuł (opcjonalnie)"],
+    "Nom": ["Name", "Name", "Nombre", "Nome", "Naam", "Nome", "Nazwa"],
+    "Nom affiché": ["Display name", "Anzeigename", "Nombre mostrado", "Nome visualizzato", "Weergavenaam", "Nome apresentado", "Wyświetlana nazwa"],
+    "Icône": ["Icon", "Symbol", "Icono", "Icona", "Pictogram", "Ícone", "Ikona"],
+    "Couleur": ["Colour", "Farbe", "Color", "Colore", "Kleur", "Cor", "Kolor"],
+    "Couleurs": ["Colours", "Farben", "Colores", "Colori", "Kleuren", "Cores", "Kolory"],
+    "Entité": ["Entity", "Entität", "Entidad", "Entità", "Entiteit", "Entidade", "Encja"],
+    "Entités": ["Entities", "Entitäten", "Entidades", "Entità", "Entiteiten", "Entidades", "Encje"],
+    "Chargement…": ["Loading…", "Wird geladen…", "Cargando…", "Caricamento…", "Laden…", "A carregar…", "Ładowanie…"],
+    "Erreur": ["Error", "Fehler", "Error", "Errore", "Fout", "Erro", "Błąd"],
+    "Fermer": ["Close", "Schließen", "Cerrar", "Chiudi", "Sluiten", "Fechar", "Zamknij"],
+    "Annuler": ["Cancel", "Abbrechen", "Cancelar", "Annulla", "Annuleren", "Cancelar", "Anuluj"],
+    "Enregistrer": ["Save", "Speichern", "Guardar", "Salva", "Opslaan", "Guardar", "Zapisz"],
+    "Supprimer": ["Delete", "Löschen", "Eliminar", "Elimina", "Verwijderen", "Eliminar", "Usuń"],
+    "Ajouter": ["Add", "Hinzufügen", "Añadir", "Aggiungi", "Toevoegen", "Adicionar", "Dodaj"],
+    "Monter": ["Move up", "Nach oben", "Subir", "Sposta su", "Omhoog", "Subir", "W górę"],
+    "Descendre": ["Move down", "Nach unten", "Bajar", "Sposta giù", "Omlaag", "Descer", "W dół"],
+    "Afficher le cadre de la carte": ["Show the card frame", "Kartenrahmen anzeigen", "Mostrar el marco de la tarjeta", "Mostra la cornice della scheda", "Kaartkader tonen", "Mostrar a moldura do cartão", "Pokaż ramkę karty"],
+    "Indisponible": ["Unavailable", "Nicht verfügbar", "No disponible", "Non disponibile", "Niet beschikbaar", "Indisponível", "Niedostępne"],
+    "Aujourd'hui": ["Today", "Heute", "Hoy", "Oggi", "Vandaag", "Hoje", "Dziś"],
+    "Hier": ["Yesterday", "Gestern", "Ayer", "Ieri", "Gisteren", "Ontem", "Wczoraj"],
+    "Demain": ["Tomorrow", "Morgen", "Mañana", "Domani", "Morgen", "Amanhã", "Jutro"],
+    "Batterie": ["Battery", "Batterie", "Batería", "Batteria", "Batterij", "Bateria", "Bateria"],
+    "Aucune donnée sur cette période.": ["No data for this period.", "Keine Daten für diesen Zeitraum.", "No hay datos en este periodo.", "Nessun dato per questo periodo.", "Geen gegevens voor deze periode.", "Sem dados neste período.", "Brak danych w tym okresie."],
+    "à l'instant": ["just now", "gerade eben", "ahora mismo", "proprio ora", "zojuist", "agora mesmo", "przed chwilą"],
+    "il y a {n} min": ["{n} min ago", "vor {n} Min.", "hace {n} min", "{n} min fa", "{n} min geleden", "há {n} min", "{n} min temu"],
+    "il y a {n} h": ["{n} h ago", "vor {n} Std.", "hace {n} h", "{n} h fa", "{n} u geleden", "há {n} h", "{n} godz. temu"],
+    "il y a {n} j": ["{n} d ago", "vor {n} T.", "hace {n} d", "{n} g fa", "{n} d geleden", "há {n} d", "{n} dni temu"],
+    "Accueil": ["Home", "Start", "Inicio", "Home", "Start", "Início", "Start"],
+    "Playlists": ["Playlists", "Playlists", "Listas", "Playlist", "Afspeellijsten", "Playlists", "Playlisty"],
+    "Albums": ["Albums", "Alben", "Álbumes", "Album", "Albums", "Álbuns", "Albumy"],
+    "Artistes": ["Artists", "Künstler", "Artistas", "Artisti", "Artiesten", "Artistas", "Wykonawcy"],
+    "Titres": ["Tracks", "Titel", "Canciones", "Brani", "Nummers", "Faixas", "Utwory"],
+    "Radios": ["Radio", "Radio", "Radios", "Radio", "Radio", "Rádios", "Radio"],
+    "Podcasts": ["Podcasts", "Podcasts", "Pódcasts", "Podcast", "Podcasts", "Podcasts", "Podcasty"],
+    "Livres audio": ["Audiobooks", "Hörbücher", "Audiolibros", "Audiolibri", "Luisterboeken", "Audiolivros", "Audiobooki"],
+    "Nom (A→Z)": ["Name (A→Z)", "Name (A→Z)", "Nombre (A→Z)", "Nome (A→Z)", "Naam (A→Z)", "Nome (A→Z)", "Nazwa (A→Z)"],
+    "Nom (Z→A)": ["Name (Z→A)", "Name (Z→A)", "Nombre (Z→A)", "Nome (Z→A)", "Naam (Z→A)", "Nome (Z→A)", "Nazwa (Z→A)"],
+    "Ajout récent": ["Recently added", "Kürzlich hinzugefügt", "Añadido recientemente", "Aggiunti di recente", "Recent toegevoegd", "Adicionado recentemente", "Ostatnio dodane"],
+    "Écouté récemment": ["Recently played", "Kürzlich gehört", "Escuchado recientemente", "Ascoltati di recente", "Recent beluisterd", "Ouvido recentemente", "Ostatnio słuchane"],
+    "Les plus écoutés": ["Most played", "Meistgehört", "Los más escuchados", "I più ascoltati", "Meest beluisterd", "Os mais ouvidos", "Najczęściej słuchane"],
+    "Année": ["Year", "Jahr", "Año", "Anno", "Jaar", "Ano", "Rok"],
+    "Aléatoire": ["Shuffle", "Zufällig", "Aleatorio", "Casuale", "Willekeurig", "Aleatório", "Losowo"],
+    "Adresse invalide": ["Invalid address", "Ungültige Adresse", "Dirección no válida", "Indirizzo non valido", "Ongeldig adres", "Endereço inválido", "Nieprawidłowy adres"],
+    "Jeton refusé": ["Token rejected", "Token abgelehnt", "Token rechazado", "Token rifiutato", "Token geweigerd", "Token recusado", "Token odrzucony"],
+    "Serveur Music Assistant injoignable": ["Music Assistant server unreachable", "Music-Assistant-Server nicht erreichbar", "Servidor de Music Assistant inaccesible", "Server Music Assistant non raggiungibile", "Music Assistant-server onbereikbaar", "Servidor do Music Assistant inacessível", "Serwer Music Assistant nieosiągalny"],
+    "Connexion fermée": ["Connection closed", "Verbindung geschlossen", "Conexión cerrada", "Connessione chiusa", "Verbinding gesloten", "Ligação fechada", "Połączenie zamknięte"],
+    "Délai dépassé": ["Timed out", "Zeitüberschreitung", "Tiempo de espera agotado", "Tempo scaduto", "Time-out", "Tempo esgotado", "Przekroczono czas"],
+    "Lecture": ["Playing", "Wiedergabe", "Reproducción", "In riproduzione", "Afspelen", "Reprodução", "Odtwarzanie"],
+    "File": ["Queue", "Warteschlange", "Cola", "Coda", "Wachtrij", "Fila", "Kolejka"],
+    "Bibliothèque": ["Library", "Bibliothek", "Biblioteca", "Libreria", "Bibliotheek", "Biblioteca", "Biblioteka"],
+    "Enceintes": ["Speakers", "Lautsprecher", "Altavoces", "Altoparlanti", "Speakers", "Colunas", "Głośniki"],
+    "Paroles": ["Lyrics", "Liedtext", "Letra", "Testo", "Songtekst", "Letra", "Tekst"],
+    "Lecture / pause": ["Play / pause", "Wiedergabe / Pause", "Reproducir / pausa", "Riproduci / pausa", "Afspelen / pauze", "Reproduzir / pausa", "Odtwórz / pauza"],
+    "Suivant": ["Next", "Weiter", "Siguiente", "Successivo", "Volgende", "Seguinte", "Następny"],
+    "Favori": ["Favourite", "Favorit", "Favorito", "Preferito", "Favoriet", "Favorito", "Ulubione"],
+    "Précédent": ["Previous", "Zurück", "Anterior", "Precedente", "Vorige", "Anterior", "Poprzedni"],
+    "Répéter": ["Repeat", "Wiederholen", "Repetir", "Ripeti", "Herhalen", "Repetir", "Powtarzaj"],
+    "Ajouter à une playlist": ["Add to a playlist", "Zu einer Playlist hinzufügen", "Añadir a una lista", "Aggiungi a una playlist", "Toevoegen aan afspeellijst", "Adicionar a uma playlist", "Dodaj do playlisty"],
+    "Enceinte éteinte": ["Speaker off", "Lautsprecher aus", "Altavoz apagado", "Altoparlante spento", "Speaker uit", "Coluna desligada", "Głośnik wyłączony"],
+    "Rien en lecture": ["Nothing playing", "Keine Wiedergabe", "Nada en reproducción", "Niente in riproduzione", "Er speelt niets", "Nada a tocar", "Nic nie gra"],
+    "Choisissez une musique dans la bibliothèque": ["Pick some music in the library", "Wählen Sie Musik in der Bibliothek", "Elige música en la biblioteca", "Scegli della musica nella libreria", "Kies muziek in de bibliotheek", "Escolha música na biblioteca", "Wybierz muzykę z biblioteki"],
+    "À suivre": ["Up next", "Als Nächstes", "A continuación", "A seguire", "Hierna", "A seguir", "Następnie"],
+    "Connexion à Music Assistant indisponible": ["Connection to Music Assistant unavailable", "Verbindung zu Music Assistant nicht verfügbar", "Conexión con Music Assistant no disponible", "Connessione a Music Assistant non disponibile", "Verbinding met Music Assistant niet beschikbaar", "Ligação ao Music Assistant indisponível", "Połączenie z Music Assistant niedostępne"],
+    "Aucun morceau en lecture": ["No track playing", "Kein Titel in Wiedergabe", "Ninguna canción en reproducción", "Nessun brano in riproduzione", "Geen nummer aan het spelen", "Nenhuma faixa a tocar", "Żaden utwór nie gra"],
+    "Aucune playlist modifiable": ["No editable playlist", "Keine bearbeitbare Playlist", "Ninguna lista editable", "Nessuna playlist modificabile", "Geen bewerkbare afspeellijst", "Nenhuma playlist editável", "Brak edytowalnej playlisty"],
+    "Ajouter « {n} »": ["Add “{n}”", "„{n}“ hinzufügen", "Añadir «{n}»", "Aggiungi «{n}»", "‘{n}’ toevoegen", "Adicionar «{n}»", "Dodaj „{n}”"],
+    "Choisissez une playlist": ["Choose a playlist", "Playlist wählen", "Elige una lista", "Scegli una playlist", "Kies een afspeellijst", "Escolha uma playlist", "Wybierz playlistę"],
+    "Ajouté à « {n} »": ["Added to “{n}”", "Zu „{n}“ hinzugefügt", "Añadido a «{n}»", "Aggiunto a «{n}»", "Toegevoegd aan ‘{n}’", "Adicionado a «{n}»", "Dodano do „{n}”"],
+    "la playlist": ["the playlist", "die Playlist", "la lista", "la playlist", "de afspeellijst", "a playlist", "playlisty"],
+    "Action impossible": ["Action failed", "Aktion nicht möglich", "Acción imposible", "Azione non riuscita", "Actie mislukt", "Ação impossível", "Działanie niemożliwe"],
+    "Paroles indisponibles": ["Lyrics unavailable", "Liedtext nicht verfügbar", "Letra no disponible", "Testo non disponibile", "Songtekst niet beschikbaar", "Letra indisponível", "Tekst niedostępny"],
+    "Pas de paroles pour ce titre": ["No lyrics for this track", "Kein Liedtext für diesen Titel", "No hay letra para esta canción", "Nessun testo per questo brano", "Geen songtekst voor dit nummer", "Sem letra para esta faixa", "Brak tekstu dla tego utworu"],
+    "Music Assistant n'en a pas trouvé. Activez un fournisseur de paroles (LRCLIB) dans ses réglages pour en obtenir davantage.": ["Music Assistant found none. Enable a lyrics provider (LRCLIB) in its settings to get more.", "Music Assistant hat keinen gefunden. Aktivieren Sie in den Einstellungen einen Liedtext-Anbieter (LRCLIB), um mehr zu erhalten.", "Music Assistant no la encontró. Activa un proveedor de letras (LRCLIB) en sus ajustes para obtener más.", "Music Assistant non l'ha trovato. Attiva un fornitore di testi (LRCLIB) nelle sue impostazioni per averne di più.", "Music Assistant vond er geen. Schakel een songtekstprovider (LRCLIB) in bij de instellingen voor meer resultaten.", "O Music Assistant não encontrou nenhuma. Ative um fornecedor de letras (LRCLIB) nas definições para obter mais.", "Music Assistant nie znalazł tekstu. Włącz dostawcę tekstów (LRCLIB) w ustawieniach, aby uzyskać więcej."],
+    "Ajouté aux favoris ♥": ["Added to favourites ♥", "Zu Favoriten hinzugefügt ♥", "Añadido a favoritos ♥", "Aggiunto ai preferiti ♥", "Toegevoegd aan favorieten ♥", "Adicionado aos favoritos ♥", "Dodano do ulubionych ♥"],
+    "Impossible d'ajouter aux favoris": ["Couldn't add to favourites", "Konnte nicht zu Favoriten hinzufügen", "No se pudo añadir a favoritos", "Impossibile aggiungere ai preferiti", "Kon niet toevoegen aan favorieten", "Não foi possível adicionar aos favoritos", "Nie udało się dodać do ulubionych"],
+    "File d'attente indisponible": ["Queue unavailable", "Warteschlange nicht verfügbar", "Cola no disponible", "Coda non disponibile", "Wachtrij niet beschikbaar", "Fila indisponível", "Kolejka niedostępna"],
+    "File d'attente": ["Queue", "Warteschlange", "Cola de reproducción", "Coda di riproduzione", "Wachtrij", "Fila de reprodução", "Kolejka"],
+    "titre": ["track", "Titel", "canción", "brano", "nummer", "faixa", "utwór"],
+    "titres": ["tracks", "Titel", "canciones", "brani", "nummers", "faixas", "utworów"],
+    "{t} restantes": ["{t} left", "noch {t}", "quedan {t}", "{t} rimanenti", "nog {t}", "faltam {t}", "zostało {t}"],
+    "position {n}": ["position {n}", "Position {n}", "posición {n}", "posizione {n}", "positie {n}", "posição {n}", "pozycja {n}"],
+    "Enregistrer comme playlist": ["Save as playlist", "Als Playlist speichern", "Guardar como lista", "Salva come playlist", "Opslaan als afspeellijst", "Guardar como playlist", "Zapisz jako playlistę"],
+    "Vider la file": ["Clear the queue", "Warteschlange leeren", "Vaciar la cola", "Svuota la coda", "Wachtrij legen", "Esvaziar a fila", "Wyczyść kolejkę"],
+    "La file est vide": ["The queue is empty", "Die Warteschlange ist leer", "La cola está vacía", "La coda è vuota", "De wachtrij is leeg", "A fila está vazia", "Kolejka jest pusta"],
+    "Ajoutez des titres depuis la bibliothèque": ["Add tracks from the library", "Fügen Sie Titel aus der Bibliothek hinzu", "Añade canciones desde la biblioteca", "Aggiungi brani dalla libreria", "Voeg nummers toe vanuit de bibliotheek", "Adicione faixas a partir da biblioteca", "Dodaj utwory z biblioteki"],
+    "Afficher toute la file": ["Show the whole queue", "Ganze Warteschlange anzeigen", "Mostrar toda la cola", "Mostra tutta la coda", "Hele wachtrij tonen", "Mostrar toda a fila", "Pokaż całą kolejkę"],
+    "Renseignez l'adresse de Music Assistant et un jeton dans l'éditeur de la carte pour voir, réordonner et modifier toute la file d'attente.": ["Enter the Music Assistant address and a token in the card editor to see, reorder and edit the whole queue.", "Geben Sie im Karteneditor die Adresse von Music Assistant und ein Token ein, um die ganze Warteschlange zu sehen, umzusortieren und zu bearbeiten.", "Indica la dirección de Music Assistant y un token en el editor de la tarjeta para ver, reordenar y editar toda la cola.", "Inserisci l'indirizzo di Music Assistant e un token nell'editor della scheda per vedere, riordinare e modificare tutta la coda.", "Vul het adres van Music Assistant en een token in de kaarteditor in om de hele wachtrij te zien, te herschikken en te bewerken.", "Indique o endereço do Music Assistant e um token no editor do cartão para ver, reordenar e editar toda a fila.", "Podaj adres Music Assistant i token w edytorze karty, aby widzieć, porządkować i edytować całą kolejkę."],
+    "Vider la file d'attente ?": ["Clear the queue?", "Warteschlange leeren?", "¿Vaciar la cola?", "Svuotare la coda?", "Wachtrij legen?", "Esvaziar a fila?", "Wyczyścić kolejkę?"],
+    "Nom de la nouvelle playlist": ["New playlist name", "Name der neuen Playlist", "Nombre de la nueva lista", "Nome della nuova playlist", "Naam van de nieuwe afspeellijst", "Nome da nova playlist", "Nazwa nowej playlisty"],
+    "Playlist créée": ["Playlist created", "Playlist erstellt", "Lista creada", "Playlist creata", "Afspeellijst gemaakt", "Playlist criada", "Utworzono playlistę"],
+    "Lire maintenant": ["Play now", "Jetzt abspielen", "Reproducir ahora", "Riproduci ora", "Nu afspelen", "Reproduzir agora", "Odtwórz teraz"],
+    "Lire ensuite": ["Play next", "Als Nächstes abspielen", "Reproducir a continuación", "Riproduci dopo", "Hierna afspelen", "Reproduzir a seguir", "Odtwórz następnie"],
+    "Déplacer à la fin": ["Move to the end", "Ans Ende verschieben", "Mover al final", "Sposta alla fine", "Naar het einde", "Mover para o fim", "Przenieś na koniec"],
+    "Retirer de la file": ["Remove from queue", "Aus Warteschlange entfernen", "Quitar de la cola", "Rimuovi dalla coda", "Uit wachtrij verwijderen", "Remover da fila", "Usuń z kolejki"],
+    "Intégration Music Assistant introuvable pour ce lecteur.": ["Music Assistant integration not found for this player.", "Music-Assistant-Integration für diesen Player nicht gefunden.", "No se encontró la integración Music Assistant para este reproductor.", "Integrazione Music Assistant non trovata per questo lettore.", "Music Assistant-integratie niet gevonden voor deze speler.", "Integração Music Assistant não encontrada para este leitor.", "Nie znaleziono integracji Music Assistant dla tego odtwarzacza."],
+    "Playlists favorites": ["Favourite playlists", "Lieblings-Playlists", "Listas favoritas", "Playlist preferite", "Favoriete afspeellijsten", "Playlists favoritas", "Ulubione playlisty"],
+    "Albums coup de cœur": ["Favourite albums", "Lieblingsalben", "Álbumes favoritos", "Album preferiti", "Favoriete albums", "Álbuns favoritos", "Ulubione albumy"],
+    "Ajouté récemment": ["Recently added", "Kürzlich hinzugefügt", "Añadido recientemente", "Aggiunti di recente", "Recent toegevoegd", "Adicionado recentemente", "Ostatnio dodane"],
+    "Bibliothèque indisponible": ["Library unavailable", "Bibliothek nicht verfügbar", "Biblioteca no disponible", "Libreria non disponibile", "Bibliotheek niet beschikbaar", "Biblioteca indisponível", "Biblioteka niedostępna"],
+    "Rechercher partout (tous les services)": ["Search everywhere (all services)", "Überall suchen (alle Dienste)", "Buscar en todas partes (todos los servicios)", "Cerca ovunque (tutti i servizi)", "Overal zoeken (alle diensten)", "Pesquisar em todo o lado (todos os serviços)", "Szukaj wszędzie (wszystkie serwisy)"],
+    "Rechercher dans la bibliothèque": ["Search the library", "In der Bibliothek suchen", "Buscar en la biblioteca", "Cerca nella libreria", "Zoeken in de bibliotheek", "Pesquisar na biblioteca", "Szukaj w bibliotece"],
+    "Rechercher aussi sur les services de streaming": ["Also search streaming services", "Auch in Streaming-Diensten suchen", "Buscar también en los servicios de streaming", "Cerca anche nei servizi di streaming", "Ook zoeken in streamingdiensten", "Pesquisar também nos serviços de streaming", "Szukaj też w serwisach streamingowych"],
+    "Favoris": ["Favourites", "Favoriten", "Favoritos", "Preferiti", "Favorieten", "Favoritos", "Ulubione"],
+    "Tri par défaut": ["Default sort", "Standardsortierung", "Orden predeterminado", "Ordinamento predefinito", "Standaardsortering", "Ordenação padrão", "Domyślne sortowanie"],
+    "Artiste": ["Artist", "Künstler", "Artista", "Artista", "Artiest", "Artista", "Wykonawca"],
+    "Playlist": ["Playlist", "Playlist", "Lista", "Playlist", "Afspeellijst", "Playlist", "Playlista"],
+    "Radio": ["Radio", "Radio", "Radio", "Radio", "Radio", "Rádio", "Radio"],
+    "Votre bibliothèque est vide": ["Your library is empty", "Ihre Bibliothek ist leer", "Tu biblioteca está vacía", "La tua libreria è vuota", "Je bibliotheek is leeg", "A sua biblioteca está vazia", "Twoja biblioteka jest pusta"],
+    "Ajoutez des services de musique dans Music Assistant": ["Add music services in Music Assistant", "Fügen Sie Musikdienste in Music Assistant hinzu", "Añade servicios de música en Music Assistant", "Aggiungi servizi musicali in Music Assistant", "Voeg muziekdiensten toe in Music Assistant", "Adicione serviços de música no Music Assistant", "Dodaj serwisy muzyczne w Music Assistant"],
+    "Aucun résultat": ["No results", "Keine Ergebnisse", "Sin resultados", "Nessun risultato", "Geen resultaten", "Sem resultados", "Brak wyników"],
+    "pour « {q} »": ["for “{q}”", "für „{q}“", "para «{q}»", "per «{q}»", "voor ‘{q}’", "para «{q}»", "dla „{q}”"],
+    "Aucun favori": ["No favourites", "Keine Favoriten", "Ningún favorito", "Nessun preferito", "Geen favorieten", "Nenhum favorito", "Brak ulubionych"],
+    "Rien ici": ["Nothing here", "Hier ist nichts", "Nada aquí", "Niente qui", "Niets hier", "Nada aqui", "Nic tu nie ma"],
+    "Afficher plus": ["Show more", "Mehr anzeigen", "Mostrar más", "Mostra altro", "Meer tonen", "Mostrar mais", "Pokaż więcej"],
+    "Contenu indisponible": ["Content unavailable", "Inhalt nicht verfügbar", "Contenido no disponible", "Contenuto non disponibile", "Inhoud niet beschikbaar", "Conteúdo indisponível", "Treść niedostępna"],
+    "Retour": ["Back", "Zurück", "Volver", "Indietro", "Terug", "Voltar", "Wstecz"],
+    "Lire": ["Play", "Abspielen", "Reproducir", "Riproduci", "Afspelen", "Reproduzir", "Odtwórz"],
+    "Lecture aléatoire": ["Shuffle play", "Zufallswiedergabe", "Reproducción aleatoria", "Riproduzione casuale", "Willekeurig afspelen", "Reprodução aleatória", "Odtwarzanie losowe"],
+    "Radio (titres similaires)": ["Radio (similar tracks)", "Radio (ähnliche Titel)", "Radio (canciones similares)", "Radio (brani simili)", "Radio (vergelijkbare nummers)", "Rádio (faixas semelhantes)", "Radio (podobne utwory)"],
+    "Plus d'options": ["More options", "Weitere Optionen", "Más opciones", "Altre opzioni", "Meer opties", "Mais opções", "Więcej opcji"],
+    "Ajouter à la file": ["Add to queue", "Zur Warteschlange hinzufügen", "Añadir a la cola", "Aggiungi alla coda", "Toevoegen aan wachtrij", "Adicionar à fila", "Dodaj do kolejki"],
+    "Remplacer la file": ["Replace the queue", "Warteschlange ersetzen", "Reemplazar la cola", "Sostituisci la coda", "Wachtrij vervangen", "Substituir a fila", "Zastąp kolejkę"],
+    "Lancer une radio (titres similaires)": ["Start a radio (similar tracks)", "Radio starten (ähnliche Titel)", "Iniciar una radio (canciones similares)", "Avvia una radio (brani simili)", "Radio starten (vergelijkbare nummers)", "Iniciar uma rádio (faixas semelhantes)", "Uruchom radio (podobne utwory)"],
+    "Ouvrir": ["Open", "Öffnen", "Abrir", "Apri", "Openen", "Abrir", "Otwórz"],
+    "Lecture…": ["Playing…", "Wird abgespielt…", "Reproduciendo…", "Riproduzione…", "Afspelen…", "A reproduzir…", "Odtwarzanie…"],
+    "Lu ensuite": ["Plays next", "Wird als Nächstes gespielt", "Se reproducirá a continuación", "Riprodotto dopo", "Wordt hierna afgespeeld", "Toca a seguir", "Zagra następnie"],
+    "Ajouté à la file": ["Added to queue", "Zur Warteschlange hinzugefügt", "Añadido a la cola", "Aggiunto alla coda", "Toegevoegd aan wachtrij", "Adicionado à fila", "Dodano do kolejki"],
+    "Ajouté": ["Added", "Hinzugefügt", "Añadido", "Aggiunto", "Toegevoegd", "Adicionado", "Dodano"],
+    "Lecture impossible": ["Can't play", "Wiedergabe nicht möglich", "No se puede reproducir", "Riproduzione impossibile", "Kan niet afspelen", "Reprodução impossível", "Nie można odtworzyć"],
+    "Disponible": ["Available", "Verfügbar", "Disponible", "Disponibile", "Beschikbaar", "Disponível", "Dostępny"],
+    "Éteinte": ["Off", "Aus", "Apagado", "Spento", "Uit", "Desligada", "Wyłączony"],
+    "En pause": ["Paused", "Pausiert", "En pausa", "In pausa", "Gepauzeerd", "Em pausa", "Wstrzymany"],
+    "Actif": ["Active", "Aktiv", "Activo", "Attivo", "Actief", "Ativo", "Aktywny"],
+    "Retirer du groupe": ["Remove from group", "Aus Gruppe entfernen", "Quitar del grupo", "Rimuovi dal gruppo", "Uit groep verwijderen", "Remover do grupo", "Usuń z grupy"],
+    "Écouter aussi ici": ["Also play here", "Auch hier hören", "Escuchar también aquí", "Ascolta anche qui", "Ook hier afspelen", "Ouvir também aqui", "Słuchaj też tutaj"],
+    "Transférer la lecture ici": ["Transfer playback here", "Wiedergabe hierher übertragen", "Transferir la reproducción aquí", "Trasferisci la riproduzione qui", "Afspelen hierheen overzetten", "Transferir a reprodução para aqui", "Przenieś odtwarzanie tutaj"],
+    "Choisissez, regroupez ou transférez la musique": ["Choose, group or transfer the music", "Musik wählen, gruppieren oder übertragen", "Elige, agrupa o transfiere la música", "Scegli, raggruppa o trasferisci la musica", "Kies, groepeer of verplaats de muziek", "Escolha, agrupe ou transfira a música", "Wybierz, grupuj lub przenoś muzykę"],
+    "Aucune enceinte Music Assistant": ["No Music Assistant speakers", "Keine Music-Assistant-Lautsprecher", "Ningún altavoz de Music Assistant", "Nessun altoparlante Music Assistant", "Geen Music Assistant-speakers", "Nenhuma coluna do Music Assistant", "Brak głośników Music Assistant"],
+    "Lecture transférée": ["Playback transferred", "Wiedergabe übertragen", "Reproducción transferida", "Riproduzione trasferita", "Afspelen overgezet", "Reprodução transferida", "Odtwarzanie przeniesione"],
+    "Enceinte retirée du groupe": ["Speaker removed from the group", "Lautsprecher aus Gruppe entfernt", "Altavoz quitado del grupo", "Altoparlante rimosso dal gruppo", "Speaker uit groep verwijderd", "Coluna removida do grupo", "Głośnik usunięty z grupy"],
+    "Enceinte ajoutée au groupe": ["Speaker added to the group", "Lautsprecher zur Gruppe hinzugefügt", "Altavoz añadido al grupo", "Altoparlante aggiunto al gruppo", "Speaker aan groep toegevoegd", "Coluna adicionada ao grupo", "Głośnik dodany do grupy"],
+    "Volume": ["Volume", "Lautstärke", "Volumen", "Volume", "Volume", "Volume", "Głośność"],
+    "Complet (lecture, file, bibliothèque, enceintes)": ["Full (playing, queue, library, speakers)", "Vollständig (Wiedergabe, Warteschlange, Bibliothek, Lautsprecher)", "Completo (reproducción, cola, biblioteca, altavoces)", "Completo (riproduzione, coda, libreria, altoparlanti)", "Volledig (afspelen, wachtrij, bibliotheek, speakers)", "Completo (reprodução, fila, biblioteca, colunas)", "Pełny (odtwarzanie, kolejka, biblioteka, głośniki)"],
+    "Mini (barre compacte, s'ouvre en grand au toucher)": ["Mini (compact bar, opens full size on tap)", "Mini (kompakte Leiste, öffnet sich beim Tippen groß)", "Mini (barra compacta, se abre en grande al tocar)", "Mini (barra compatta, si apre in grande al tocco)", "Mini (compacte balk, opent groot bij tikken)", "Mini (barra compacta, abre em grande ao tocar)", "Mini (kompaktowy pasek, otwiera się po dotknięciu)"],
+    "Apparence": ["Appearance", "Darstellung", "Apariencia", "Aspetto", "Weergave", "Aparência", "Wygląd"],
+    "Pochette": ["Artwork", "Cover", "Portada", "Copertina", "Hoes", "Capa", "Okładka"],
+    "Vinyle qui tourne": ["Spinning vinyl", "Drehende Schallplatte", "Vinilo girando", "Vinile che gira", "Draaiend vinyl", "Vinil a girar", "Kręcący się winyl"],
+    "Vue mini": ["Mini view", "Mini-Ansicht", "Vista mini", "Vista mini", "Miniweergave", "Vista mini", "Widok mini"],
+    "Bibliothèque et enceintes": ["Library and speakers", "Bibliothek und Lautsprecher", "Biblioteca y altavoces", "Libreria e altoparlanti", "Bibliotheek en speakers", "Biblioteca e colunas", "Biblioteka i głośniki"],
+    "Serveur Music Assistant séparé (hors add-on)": ["Separate Music Assistant server (not the add-on)", "Separater Music-Assistant-Server (kein Add-on)", "Servidor de Music Assistant independiente (sin complemento)", "Server Music Assistant separato (non add-on)", "Aparte Music Assistant-server (geen add-on)", "Servidor Music Assistant separado (sem add-on)", "Osobny serwer Music Assistant (nie dodatek)"],
+    "Pochettes (avancé)": ["Artwork (advanced)", "Cover (erweitert)", "Portadas (avanzado)", "Copertine (avanzato)", "Hoezen (geavanceerd)", "Capas (avançado)", "Okładki (zaawansowane)"],
+    "Lecteur Music Assistant": ["Music Assistant player", "Music-Assistant-Player", "Reproductor de Music Assistant", "Lettore Music Assistant", "Music Assistant-speler", "Leitor do Music Assistant", "Odtwarzacz Music Assistant"],
+    "Présentation": ["Layout", "Darstellung", "Presentación", "Presentazione", "Weergave", "Apresentação", "Układ"],
+    "Style de pochette": ["Artwork style", "Cover-Stil", "Estilo de portada", "Stile della copertina", "Hoesstijl", "Estilo da capa", "Styl okładki"],
+    "Onglet d'ouverture": ["Opening tab", "Start-Reiter", "Pestaña inicial", "Scheda iniziale", "Starttabblad", "Separador inicial", "Karta startowa"],
+    "Couleurs tirées de la pochette": ["Colours taken from the artwork", "Farben aus dem Cover", "Colores sacados de la portada", "Colori presi dalla copertina", "Kleuren uit de hoes", "Cores tiradas da capa", "Kolory z okładki"],
+    "Couleur d'accent (par défaut)": ["Accent colour (default)", "Akzentfarbe (Standard)", "Color de acento (predeterminado)", "Colore d'accento (predefinito)", "Accentkleur (standaard)", "Cor de destaque (padrão)", "Kolor akcentu (domyślny)"],
+    "Hauteur de la carte": ["Card height", "Kartenhöhe", "Altura de la tarjeta", "Altezza della scheda", "Kaarthoogte", "Altura do cartão", "Wysokość karty"],
+    "Rubriques de la bibliothèque": ["Library sections", "Bibliotheksbereiche", "Secciones de la biblioteca", "Sezioni della libreria", "Bibliotheekrubrieken", "Secções da biblioteca", "Sekcje biblioteki"],
+    "Onglet Enceintes (multiroom)": ["Speakers tab (multiroom)", "Reiter Lautsprecher (Multiroom)", "Pestaña Altavoces (multiroom)", "Scheda Altoparlanti (multiroom)", "Tabblad Speakers (multiroom)", "Separador Colunas (multiroom)", "Karta Głośniki (multiroom)"],
+    "Enceintes proposées (vide = toutes)": ["Speakers offered (empty = all)", "Angebotene Lautsprecher (leer = alle)", "Altavoces propuestos (vacío = todos)", "Altoparlanti proposti (vuoto = tutti)", "Aangeboden speakers (leeg = alle)", "Colunas propostas (vazio = todas)", "Proponowane głośniki (puste = wszystkie)"],
+    "Adresse de Music Assistant (ex. http://192.168.1.10:8095)": ["Music Assistant address (e.g. http://192.168.1.10:8095)", "Adresse von Music Assistant (z. B. http://192.168.1.10:8095)", "Dirección de Music Assistant (p. ej. http://192.168.1.10:8095)", "Indirizzo di Music Assistant (es. http://192.168.1.10:8095)", "Adres van Music Assistant (bv. http://192.168.1.10:8095)", "Endereço do Music Assistant (ex. http://192.168.1.10:8095)", "Adres Music Assistant (np. http://192.168.1.10:8095)"],
+    "Jeton d'accès Music Assistant": ["Music Assistant access token", "Music-Assistant-Zugriffstoken", "Token de acceso de Music Assistant", "Token di accesso Music Assistant", "Music Assistant-toegangstoken", "Token de acesso do Music Assistant", "Token dostępu Music Assistant"],
+    "Adresse HTTPS des images Music Assistant (facultatif)": ["Music Assistant images HTTPS address (optional)", "HTTPS-Adresse der Music-Assistant-Bilder (optional)", "Dirección HTTPS de las imágenes de Music Assistant (opcional)", "Indirizzo HTTPS delle immagini Music Assistant (facoltativo)", "HTTPS-adres van de Music Assistant-afbeeldingen (optioneel)", "Endereço HTTPS das imagens do Music Assistant (opcional)", "Adres HTTPS obrazów Music Assistant (opcjonalnie)"],
+    "Bouton Précédent": ["Previous button", "Zurück-Taste", "Botón Anterior", "Pulsante Precedente", "Knop Vorige", "Botão Anterior", "Przycisk Poprzedni"],
+    "Réglage du volume": ["Volume control", "Lautstärkeregler", "Control de volumen", "Regolazione del volume", "Volumeregeling", "Controlo de volume", "Regulacja głośności"],
+    "Inutile avec l'add-on Music Assistant : la carte s'y connecte automatiquement via Home Assistant. À renseigner seulement pour un serveur séparé.": ["Not needed with the Music Assistant add-on: the card connects to it automatically through Home Assistant. Only fill in for a separate server.", "Mit dem Music-Assistant-Add-on unnötig: Die Karte verbindet sich automatisch über Home Assistant. Nur für einen separaten Server ausfüllen.", "Innecesario con el complemento Music Assistant: la tarjeta se conecta automáticamente a través de Home Assistant. Solo para un servidor independiente.", "Inutile con l'add-on Music Assistant: la scheda si collega automaticamente tramite Home Assistant. Da compilare solo per un server separato.", "Niet nodig met de Music Assistant-add-on: de kaart maakt automatisch verbinding via Home Assistant. Alleen invullen voor een aparte server.", "Desnecessário com o add-on Music Assistant: o cartão liga-se automaticamente através do Home Assistant. Preencher só para um servidor separado.", "Niepotrzebne z dodatkiem Music Assistant: karta łączy się automatycznie przez Home Assistant. Wypełnij tylko dla osobnego serwera."],
+    "Music Assistant → Paramètres → Profil → Jetons d'accès (serveur séparé uniquement).": ["Music Assistant → Settings → Profile → Access tokens (separate server only).", "Music Assistant → Einstellungen → Profil → Zugriffstoken (nur separater Server).", "Music Assistant → Ajustes → Perfil → Tokens de acceso (solo servidor independiente).", "Music Assistant → Impostazioni → Profilo → Token di accesso (solo server separato).", "Music Assistant → Instellingen → Profiel → Toegangstokens (alleen aparte server).", "Music Assistant → Definições → Perfil → Tokens de acesso (só servidor separado).", "Music Assistant → Ustawienia → Profil → Tokeny dostępu (tylko osobny serwer)."],
+    "Inutile avec l'add-on Music Assistant (les pochettes passent automatiquement par Home Assistant). Sinon : l'adresse HTTPS de votre serveur Music Assistant, joignable par le navigateur.": ["Not needed with the Music Assistant add-on (artwork goes through Home Assistant automatically). Otherwise: the HTTPS address of your Music Assistant server, reachable by the browser.", "Mit dem Music-Assistant-Add-on unnötig (Cover laufen automatisch über Home Assistant). Sonst: die HTTPS-Adresse Ihres Music-Assistant-Servers, vom Browser erreichbar.", "Innecesario con el complemento Music Assistant (las portadas pasan automáticamente por Home Assistant). Si no: la dirección HTTPS de tu servidor Music Assistant, accesible desde el navegador.", "Inutile con l'add-on Music Assistant (le copertine passano automaticamente da Home Assistant). Altrimenti: l'indirizzo HTTPS del tuo server Music Assistant, raggiungibile dal browser.", "Niet nodig met de Music Assistant-add-on (hoezen gaan automatisch via Home Assistant). Anders: het HTTPS-adres van je Music Assistant-server, bereikbaar vanuit de browser.", "Desnecessário com o add-on Music Assistant (as capas passam automaticamente pelo Home Assistant). Senão: o endereço HTTPS do seu servidor Music Assistant, acessível pelo navegador.", "Niepotrzebne z dodatkiem Music Assistant (okładki przechodzą automatycznie przez Home Assistant). W przeciwnym razie: adres HTTPS serwera Music Assistant, dostępny z przeglądarki."],
+    "Laissez vide pour proposer toutes les enceintes Music Assistant.": ["Leave empty to offer all Music Assistant speakers.", "Leer lassen, um alle Music-Assistant-Lautsprecher anzubieten.", "Déjalo vacío para proponer todos los altavoces de Music Assistant.", "Lascia vuoto per proporre tutti gli altoparlanti Music Assistant.", "Laat leeg om alle Music Assistant-speakers aan te bieden.", "Deixe vazio para propor todas as colunas do Music Assistant.", "Zostaw puste, aby proponować wszystkie głośniki Music Assistant."],
+    "HOLM Musique": ["HOLM Music", "HOLM Musik", "HOLM Música", "HOLM Musica", "HOLM Muziek", "HOLM Música", "HOLM Muzyka"],
+    "Lecteur Music Assistant : lecture, file d'attente, bibliothèque, recherche, multiroom et vue mini.": ["Music Assistant player: playback, queue, library, search, multiroom and mini view.", "Music-Assistant-Player: Wiedergabe, Warteschlange, Bibliothek, Suche, Multiroom und Mini-Ansicht.", "Reproductor de Music Assistant: reproducción, cola, biblioteca, búsqueda, multiroom y vista mini.", "Lettore Music Assistant: riproduzione, coda, libreria, ricerca, multiroom e vista mini.", "Music Assistant-speler: afspelen, wachtrij, bibliotheek, zoeken, multiroom en miniweergave.", "Leitor do Music Assistant: reprodução, fila, biblioteca, pesquisa, multiroom e vista mini.", "Odtwarzacz Music Assistant: odtwarzanie, kolejka, biblioteka, wyszukiwanie, multiroom i widok mini."]
+  };
+  let LANG = "fr", NUMLOC = "fr-FR";
+  const langOf = (hass, c) => { const l = String((c && c.language) || (hass && ((hass.locale && hass.locale.language) || hass.language)) || navigator.language || "en").toLowerCase().split(/[-_]/)[0]; return l === "fr" || HOLM_LANGS.includes(l) ? l : "en"; };
+  const setLang = (hass, c) => { LANG = langOf(hass, c); const p = hass && hass.locale && hass.locale.language; NUMLOC = !(c && c.language) && p && p.toLowerCase().startsWith(LANG) ? p : LOCALES[LANG]; return LANG; };
+  const _ = (s, v) => { let o = LANG === "fr" ? s : ((I18N[s] && I18N[s][HOLM_LANGS.indexOf(LANG)]) || s); if (v) for (const k in v) o = o.split("{" + k + "}").join(v[k]); return o; };
+  // champ « Langue » pour les éditeurs visuels (ha-form)
+  const langField = () => ({ name: "language", selector: { select: { mode: "dropdown", options: [{ value: "", label: _("Automatique (profil)") }, ...Object.entries(LANG_NAMES).map(([value, label]) => ({ value, label }))] } } });
+  // traduit les titres de sections et les libellés d'options d'un schéma ha-form (écrits en français)
+  const locSchema = (sc) => (sc || []).map((x) => { const o = { ...x }; if (o.title) o.title = _(o.title); if (o.schema) o.schema = locSchema(o.schema);
+    if (o.selector && o.selector.select && o.name !== "language") o.selector = { ...o.selector, select: { ...o.selector.select, options: (o.selector.select.options || []).map((op) => (typeof op === "string" ? op : { ...op, label: _(op.label) })) } };
+    if (o.name === "language" && o.selector && o.selector.select) o.selector = { ...o.selector, select: { ...o.selector.select, options: o.selector.select.options.map((op) => (op.value ? op : { ...op, label: _("Automatique (profil)") })) } };
+    return o; });
+  const VERSION = "1.3.0";
   const TYPES = {
-    home: { label: "Accueil", icon: "mdi:home-variant-outline" },
-    playlist: { label: "Playlists", icon: "mdi:playlist-music" },
-    album: { label: "Albums", icon: "mdi:album" },
-    artist: { label: "Artistes", icon: "mdi:account-music" },
-    track: { label: "Titres", icon: "mdi:music-note" },
-    radio: { label: "Radios", icon: "mdi:radio" },
-    podcast: { label: "Podcasts", icon: "mdi:podcast" },
-    audiobook: { label: "Livres audio", icon: "mdi:book-music" },
+    home: { label: _("Accueil"), icon: "mdi:home-variant-outline" },
+    playlist: { label: _("Playlists"), icon: "mdi:playlist-music" },
+    album: { label: _("Albums"), icon: "mdi:album" },
+    artist: { label: _("Artistes"), icon: "mdi:account-music" },
+    track: { label: _("Titres"), icon: "mdi:music-note" },
+    radio: { label: _("Radios"), icon: "mdi:radio" },
+    podcast: { label: _("Podcasts"), icon: "mdi:podcast" },
+    audiobook: { label: _("Livres audio"), icon: "mdi:book-music" },
   };
   const DEFAULT_TYPES = ["home", "playlist", "album", "artist", "track", "radio"];
   const SORTS = {
-    name: "Nom (A→Z)", name_desc: "Nom (Z→A)", timestamp_added_desc: "Ajout récent", last_played_desc: "Écouté récemment",
-    play_count_desc: "Les plus écoutés", year_desc: "Année", random: "Aléatoire",
+    name: _("Nom (A→Z)"), name_desc: _("Nom (Z→A)"), timestamp_added_desc: _("Ajout récent"), last_played_desc: _("Écouté récemment"),
+    play_count_desc: _("Les plus écoutés"), year_desc: _("Année"), random: _("Aléatoire"),
   };
   const DEFAULTS = { mode: "full", start_tab: "now", artwork: "square", dynamic_color: true, accent: "#26c6da", height: 640, library_types: DEFAULT_TYPES, show_players: true, mini_prev: true, mini_volume: true };
   const G = (window.__holmMusic = window.__holmMusic || { conns: {}, colors: {} });
@@ -123,7 +317,7 @@
         try {
           ws = new WebSocket(this.ingress ? location.origin.replace(/^http/, "ws") + this.url + "/ws" : this.url.replace(/^http/, "ws") + "/ws");
         } catch (e) {
-          this.error = "Adresse invalide";
+          this.error = _("Adresse invalide");
           this.ready = null;
           return reject(e);
         }
@@ -140,7 +334,7 @@
           if (m.server_id && !authed) {
             this.server = m;
             if (this.ingress) { authed = true; this.error = null; resolve(this); return; }
-            this.send("auth", { token: this.token }, true).then(() => { authed = true; this.error = null; resolve(this); }).catch((e) => fail(e.message || "Jeton refusé"));
+            this.send("auth", { token: this.token }, true).then(() => { authed = true; this.error = null; resolve(this); }).catch((e) => fail(e.message || _("Jeton refusé")));
             return;
           }
           if (m.event) { this.listeners.forEach((fn) => fn(m)); return; }
@@ -151,11 +345,11 @@
           delete this.pending[m.message_id];
           p.resolve(p.acc ? p.acc.concat(m.result || []) : m.result);
         };
-        ws.onerror = () => { if (!authed) fail("Serveur Music Assistant injoignable"); };
+        ws.onerror = () => { if (!authed) fail(_("Serveur Music Assistant injoignable")); };
         ws.onclose = () => {
           if (this.ws !== ws) return;
           this.ready = null;
-          Object.values(this.pending).forEach((p) => p.reject(new Error("Connexion fermée")));
+          Object.values(this.pending).forEach((p) => p.reject(new Error(_("Connexion fermée"))));
           this.pending = {};
           if (authed) setTimeout(() => this.listeners.size && this.connect().catch(() => {}), 3000);
         };
@@ -167,7 +361,7 @@
         const message_id = `h${++this.id}`;
         this.pending[message_id] = { resolve, reject };
         this.ws.send(JSON.stringify({ message_id, command, args }));
-        setTimeout(() => { if (this.pending[message_id]) { delete this.pending[message_id]; reject(new Error("Délai dépassé")); } }, 20000);
+        setTimeout(() => { if (this.pending[message_id]) { delete this.pending[message_id]; reject(new Error(_("Délai dépassé"))); } }, 20000);
       });
       if (raw) return run();
       // une connexion restée ouverte longtemps peut avoir été coupée : on la rouvre une fois
@@ -255,6 +449,7 @@
       const first = !this._hass;
       this._hass = hass;
       if (!this._config) return;
+      { const _l = setLang(hass, this._config); if (this._lang && _l !== this._lang && this.shadowRoot) { this._built = false; this.shadowRoot.innerHTML = ""; } this._lang = _l; }
       if (IMG.state === "idle" || this._config.ma_image_url) initImages(hass, this._config);
       if (!this._player || !hass.states[this._player]) this._player = this._config.entity || this._players()[0];
       const st = hass.states[this._player];
@@ -346,11 +541,12 @@
     // ---------------- rendu ----------------
     _render() {
       if (!this._hass || !this._config || !this.shadowRoot) return;
+      setLang(this._hass, this._config);
       const c = this._config;
       if (c.mode === "mini") return this._renderMini();
       this._built = true;
-      const tabs = [["now", "mdi:music-note", "Lecture"], ["queue", "mdi:playlist-music", "File"], ["library", "mdi:bookshelf", "Bibliothèque"]];
-      if (c.show_players) tabs.push(["speakers", "mdi:speaker-multiple", "Enceintes"]);
+      const tabs = [["now", "mdi:music-note", _("Lecture")], ["queue", "mdi:playlist-music", _("File")], ["library", "mdi:bookshelf", _("Bibliothèque")]];
+      if (c.show_players) tabs.push(["speakers", "mdi:speaker-multiple", _("Enceintes")]);
       this.shadowRoot.innerHTML = `<style>${HolmMusicCard.css()}</style>
         <ha-card class="full" style="--h:${Number(c.height) || 640}px">
           <div class="bg" id="bg"></div><div class="bg2"></div>
@@ -392,7 +588,7 @@
       p.innerHTML = `
         <header class="np-head">
           <button class="player-chip" data-act="speakers"><ha-icon icon="mdi:speaker"></ha-icon><span id="pname"></span><ha-icon icon="mdi:chevron-down" class="chev"></ha-icon></button>
-          <div class="np-r"><div class="eq" id="eq"><i></i><i></i><i></i><i></i></div><button class="ly-btn" data-act="lyrics" id="b-lyr" title="Paroles"><ha-icon icon="mdi:microphone-variant"></ha-icon></button></div>
+          <div class="np-r"><div class="eq" id="eq"><i></i><i></i><i></i><i></i></div><button class="ly-btn" data-act="lyrics" id="b-lyr" title="${_("Paroles")}"><ha-icon icon="mdi:microphone-variant"></ha-icon></button></div>
         </header>
         <div class="art-wrap" id="artwrap">
           <div class="art" id="art"><img id="artimg" alt=""><div class="hole"></div><div class="noart"><ha-icon icon="mdi:music-circle-outline"></ha-icon></div></div>
@@ -409,17 +605,17 @@
           <div class="times"><span id="pos">0:00</span><span id="dur">0:00</span></div>
         </div>
         <div class="ctrls">
-          <button class="sm" data-act="shuffle" id="b-shuffle" title="Aléatoire"><ha-icon icon="mdi:shuffle-variant"></ha-icon></button>
-          <button class="md" data-act="prev" title="Précédent"><ha-icon icon="mdi:skip-previous"></ha-icon></button>
-          <button class="play" data-act="play" id="b-play" title="Lecture / pause"><ha-icon icon="mdi:play"></ha-icon></button>
-          <button class="md" data-act="next" title="Suivant"><ha-icon icon="mdi:skip-next"></ha-icon></button>
-          <button class="sm" data-act="repeat" id="b-repeat" title="Répéter"><ha-icon icon="mdi:repeat-off"></ha-icon></button>
+          <button class="sm" data-act="shuffle" id="b-shuffle" title="${_("Aléatoire")}"><ha-icon icon="mdi:shuffle-variant"></ha-icon></button>
+          <button class="md" data-act="prev" title="${_("Précédent")}"><ha-icon icon="mdi:skip-previous"></ha-icon></button>
+          <button class="play" data-act="play" id="b-play" title="${_("Lecture / pause")}"><ha-icon icon="mdi:play"></ha-icon></button>
+          <button class="md" data-act="next" title="${_("Suivant")}"><ha-icon icon="mdi:skip-next"></ha-icon></button>
+          <button class="sm" data-act="repeat" id="b-repeat" title="${_("Répéter")}"><ha-icon icon="mdi:repeat-off"></ha-icon></button>
         </div>
         <div class="vol">
           <button class="sm" data-act="mute" id="b-mute"><ha-icon icon="mdi:volume-high"></ha-icon></button>
           <input type="range" id="vol" min="0" max="100" step="1">
-          <button class="sm" data-act="fav" id="b-fav" title="Favori"><ha-icon icon="mdi:heart-outline"></ha-icon></button>
-          <button class="sm" data-act="addpl" id="b-addpl" title="Ajouter à une playlist"><ha-icon icon="mdi:playlist-plus"></ha-icon></button>
+          <button class="sm" data-act="fav" id="b-fav" title="${_("Favori")}"><ha-icon icon="mdi:heart-outline"></ha-icon></button>
+          <button class="sm" data-act="addpl" id="b-addpl" title="${_("Ajouter à une playlist")}"><ha-icon icon="mdi:playlist-plus"></ha-icon></button>
         </div>
         <button class="upnext" data-act="queue" id="upnext"></button>`;
       p.addEventListener("click", (e) => {
@@ -465,9 +661,9 @@
       $("pname").textContent = a.friendly_name || this._player;
       $("eq").classList.toggle("on", playing);
       const ttl = $("title").firstElementChild;
-      ttl.textContent = a.media_title || (st.state === "off" ? "Enceinte éteinte" : "Rien en lecture");
+      ttl.textContent = a.media_title || (st.state === "off" ? _("Enceinte éteinte") : _("Rien en lecture"));
       requestAnimationFrame(() => { const ov = ttl.scrollWidth - $("title").clientWidth; $("title").classList.toggle("go", ov > 4); $("title").style.setProperty("--d", `${-(ov + 24)}px`); });
-      $("artist").textContent = a.media_artist || (idle ? "Choisissez une musique dans la bibliothèque" : "");
+      $("artist").textContent = a.media_artist || (idle ? _("Choisissez une musique dans la bibliothèque") : "");
       $("album").textContent = a.media_album_name || "";
       const pic = a.entity_picture_local || a.entity_picture || "";
       const img = $("artimg");
@@ -554,7 +750,7 @@
       el.classList.toggle("show", !!n);
       if (!n) return;
       const m = n.media_item || {};
-      el.innerHTML = `<span class="lbl">À suivre</span>${(m.image || (m.album && m.album.image)) ? `<img src="${esc(sized(m.image || (m.album && m.album.image), 96))}" alt="">` : `<span class="noimg"><ha-icon icon="mdi:music-note"></ha-icon></span>`}<span class="nx"><b>${esc(m.name || n.name)}</b><small>${esc(artists(m))}</small></span><ha-icon icon="mdi:chevron-right"></ha-icon>`;
+      el.innerHTML = `<span class="lbl">${_("À suivre")}</span>${(m.image || (m.album && m.album.image)) ? `<img src="${esc(sized(m.image || (m.album && m.album.image), 96))}" alt="">` : `<span class="noimg"><ha-icon icon="mdi:music-note"></ha-icon></span>`}<span class="nx"><b>${esc(m.name || n.name)}</b><small>${esc(artists(m))}</small></span><ha-icon icon="mdi:chevron-right"></ha-icon>`;
     }
     async _act(act, el) {
       const st = this._st();
@@ -580,29 +776,29 @@
     // ---------------- morceau en cours (Music Assistant) ----------------
     async _currentItem() {
       const c = this._conn(), st = this._st(), qid = st && st.attributes.active_queue;
-      if (!c || !qid) throw new Error("Connexion à Music Assistant indisponible");
+      if (!c || !qid) throw new Error(_("Connexion à Music Assistant indisponible"));
       const q = await c.send("player_queues/get", { queue_id: qid });
       const it = q && q.current_item, m = it && it.media_item;
-      if (!m || !m.uri) throw new Error("Aucun morceau en lecture");
+      if (!m || !m.uri) throw new Error(_("Aucun morceau en lecture"));
       return m;
     }
 
     // ---------------- ajouter à une playlist ----------------
     async _addToPlaylist(item) {
       const c = this._conn();
-      if (!c) return this._toast("Connexion à Music Assistant indisponible");
+      if (!c) return this._toast(_("Connexion à Music Assistant indisponible"));
       try {
         const m = item || await this._currentItem();
         const all = await c.send("music/playlists/library_items", { limit: 500, offset: 0, order_by: "name" });
         const lists = (all || []).filter((p) => p.is_editable && !(p.provider_mappings || []).some((x) => /smart/.test(x.provider_domain || x.provider_instance || "")));
-        if (!lists.length) return this._toast("Aucune playlist modifiable");
-        this._sheet(`Ajouter « ${m.name} »`, "Choisissez une playlist", lists.map((p) => ["mdi:playlist-music", esc(p.name), String(p.item_id)]), async (id) => {
+        if (!lists.length) return this._toast(_("Aucune playlist modifiable"));
+        this._sheet(_("Ajouter « {n} »", { n: m.name }), _("Choisissez une playlist"), lists.map((p) => ["mdi:playlist-music", esc(p.name), String(p.item_id)]), async (id) => {
           const pl = lists.find((p) => String(p.item_id) === id);
           await c.send("music/playlists/add_playlist_tracks", { db_playlist_id: id, uris: [m.uri] });
-          this._toast(`Ajouté à « ${pl ? pl.name : "la playlist"} »`);
+          this._toast(_("Ajouté à « {n} »", { n: pl ? pl.name : _("la playlist") }));
           haptic("success");
         });
-      } catch (err) { this._toast(err.message || "Action impossible"); }
+      } catch (err) { this._toast(err.message || _("Action impossible")); }
     }
 
     // ---------------- paroles ----------------
@@ -633,7 +829,7 @@
         }
         text = md.lyrics; lrc = md.lrc_lyrics;
       } catch (err) {
-        if (this._lyrKey === key) box.innerHTML = `<div class="ly-empty"><ha-icon icon="mdi:microphone-off"></ha-icon><b>Paroles indisponibles</b><small>${esc(err.message || "")}</small></div>`;
+        if (this._lyrKey === key) box.innerHTML = `<div class="ly-empty"><ha-icon icon="mdi:microphone-off"></ha-icon><b>${_("Paroles indisponibles")}</b><small>${esc(err.message || "")}</small></div>`;
         return;
       }
       if (this._lyrKey !== key) return;
@@ -653,7 +849,7 @@
       } else if (text) {
         box.innerHTML = `<div class="ly-list">${text.split(/\r?\n/).map((l) => `<p>${esc(l) || "&nbsp;"}</p>`).join("")}</div>`;
       } else {
-        box.innerHTML = `<div class="ly-empty"><ha-icon icon="mdi:microphone-off"></ha-icon><b>Pas de paroles pour ce titre</b><small>Music Assistant n'en a pas trouvé. Activez un fournisseur de paroles (LRCLIB) dans ses réglages pour en obtenir davantage.</small></div>`;
+        box.innerHTML = `<div class="ly-empty"><ha-icon icon="mdi:microphone-off"></ha-icon><b>${_("Pas de paroles pour ce titre")}</b><small>${_("Music Assistant n'en a pas trouvé. Activez un fournisseur de paroles (LRCLIB) dans ses réglages pour en obtenir davantage.")}</small></div>`;
       }
     }
     _syncLyrics(pos, force) {
@@ -684,8 +880,8 @@
       try {
         if (btn) await h.callService("button", "press", { entity_id: btn });
         else if (this._conn()) await this._conn().send("players/add_currently_playing_to_favorites", { player_id: e.unique_id || this._player });
-        this._toast("Ajouté aux favoris ♥");
-      } catch (err) { this._toast("Impossible d'ajouter aux favoris"); }
+        this._toast(_("Ajouté aux favoris ♥"));
+      } catch (err) { this._toast(_("Impossible d'ajouter aux favoris")); }
     }
     _pickPlayer() {
       const list = this._players();
@@ -727,7 +923,7 @@
         this._qConn = null;
         this._renderQueueLite(q);
       } catch (e) {
-        p.innerHTML = this._empty("mdi:playlist-remove", "File d'attente indisponible", e.message);
+        p.innerHTML = this._empty("mdi:playlist-remove", _("File d'attente indisponible"), e.message);
       }
     }
     _qRow(it, i, cur) {
@@ -743,19 +939,19 @@
       const p = this.shadowRoot.getElementById("p-queue"), items = this._qItems || [], q = this._qMeta || {};
       const cur = q.current_index != null ? q.current_index : -1;
       const left = items.slice(Math.max(cur, 0)).reduce((s, it) => s + (it.duration || 0), 0);
-      p.innerHTML = `<header class="phead"><div><h3>File d'attente</h3><small>${items.length} titre${items.length > 1 ? "s" : ""}${left ? ` · ${fmt(left)} restantes` : ""}</small></div>
-        <div class="hbtns"><button data-q="save" title="Enregistrer comme playlist"><ha-icon icon="mdi:playlist-plus"></ha-icon></button><button data-q="clear" title="Vider la file"><ha-icon icon="mdi:playlist-remove"></ha-icon></button></div></header>
-        <div class="qlist" id="qlist">${items.length ? items.map((it, i) => this._qRow(it, i, cur)).join("") : this._empty("mdi:playlist-music-outline", "La file est vide", "Ajoutez des titres depuis la bibliothèque")}</div>`;
+      p.innerHTML = `<header class="phead"><div><h3>${_("File d'attente")}</h3><small>${items.length} ${items.length > 1 ? _("titres") : _("titre")}${left ? ` · ${_("{t} restantes", { t: fmt(left) })}` : ""}</small></div>
+        <div class="hbtns"><button data-q="save" title="${_("Enregistrer comme playlist")}"><ha-icon icon="mdi:playlist-plus"></ha-icon></button><button data-q="clear" title="${_("Vider la file")}"><ha-icon icon="mdi:playlist-remove"></ha-icon></button></div></header>
+        <div class="qlist" id="qlist">${items.length ? items.map((it, i) => this._qRow(it, i, cur)).join("") : this._empty("mdi:playlist-music-outline", _("La file est vide"), _("Ajoutez des titres depuis la bibliothèque"))}</div>`;
       const curEl = p.querySelector(".qrow.cur");
       if (curEl) requestAnimationFrame(() => curEl.scrollIntoView({ block: "center" }));
     }
     _renderQueueLite(q) {
       const p = this.shadowRoot.getElementById("p-queue");
-      if (!q || !q.current_item) { p.innerHTML = this._empty("mdi:playlist-music-outline", "La file est vide", "Ajoutez des titres depuis la bibliothèque"); return; }
+      if (!q || !q.current_item) { p.innerHTML = this._empty("mdi:playlist-music-outline", _("La file est vide"), _("Ajoutez des titres depuis la bibliothèque")); return; }
       const rows = [q.current_item, q.next_item].filter(Boolean).map((it, i) => this._qRow(it, i, 0)).join("");
-      p.innerHTML = `<header class="phead"><div><h3>File d'attente</h3><small>${q.items} titre${q.items > 1 ? "s" : ""} · position ${(q.current_index || 0) + 1}</small></div></header>
+      p.innerHTML = `<header class="phead"><div><h3>${_("File d'attente")}</h3><small>${q.items} ${q.items > 1 ? _("titres") : _("titre")} · ${_("position {n}", { n: (q.current_index || 0) + 1 })}</small></div></header>
         <div class="qlist">${rows}</div>
-        <div class="hint"><ha-icon icon="mdi:link-variant"></ha-icon><div><b>Afficher toute la file</b><small>Renseignez l'adresse de Music Assistant et un jeton dans l'éditeur de la carte pour voir, réordonner et modifier toute la file d'attente.${this._qErr ? `<br><em>${esc(this._qErr)}</em>` : ""}</small></div></div>`;
+        <div class="hint"><ha-icon icon="mdi:link-variant"></ha-icon><div><b>${_("Afficher toute la file")}</b><small>${_("Renseignez l'adresse de Music Assistant et un jeton dans l'éditeur de la carte pour voir, réordonner et modifier toute la file d'attente.")}${this._qErr ? `<br><em>${esc(this._qErr)}</em>` : ""}</small></div></div>`;
     }
     async _queueClick(e) {
       const b = e.target.closest("[data-q]");
@@ -770,29 +966,29 @@
         }
         if (b.dataset.q === "more" && row) return this._queueSheet(row);
         if (b.dataset.q === "clear" && c) {
-          if (!confirm("Vider la file d'attente ?")) return;
+          if (!confirm(_("Vider la file d'attente ?"))) return;
           await c.send("player_queues/clear", { queue_id: qid });
           return this._loadQueue();
         }
         if (b.dataset.q === "save" && c) {
-          const name = prompt("Nom de la nouvelle playlist", `File ${new Date().toLocaleDateString("fr-FR")}`);
+          const name = prompt(_("Nom de la nouvelle playlist"), `${_("File")} ${new Date().toLocaleDateString(NUMLOC)}`);
           if (!name) return;
           await c.send("player_queues/save_as_playlist", { queue_id: qid, name });
-          this._toast("Playlist créée");
+          this._toast(_("Playlist créée"));
         }
-      } catch (err) { this._toast(err.message || "Action impossible"); }
+      } catch (err) { this._toast(err.message || _("Action impossible")); }
     }
     _queueSheet(row) {
       const i = Number(row.dataset.i), it = this._qItems[i], m = it.media_item || {};
       const cur = (this._qMeta && this._qMeta.current_index) || 0;
       this._sheet(m.name || it.name, artists(m), [
-        ["mdi:play", "Lire maintenant", "play"],
-        i > cur + 1 ? ["mdi:playlist-play", "Lire ensuite", "next"] : null,
-        i > 0 ? ["mdi:arrow-up", "Monter", "up"] : null,
-        i < this._qItems.length - 1 ? ["mdi:arrow-down", "Descendre", "down"] : null,
-        ["mdi:arrow-collapse-down", "Déplacer à la fin", "end"],
-        m.uri ? ["mdi:playlist-plus", "Ajouter à une playlist", "addpl"] : null,
-        ["mdi:delete-outline", "Retirer de la file", "del", "danger"],
+        ["mdi:play", _("Lire maintenant"), "play"],
+        i > cur + 1 ? ["mdi:playlist-play", _("Lire ensuite"), "next"] : null,
+        i > 0 ? ["mdi:arrow-up", _("Monter"), "up"] : null,
+        i < this._qItems.length - 1 ? ["mdi:arrow-down", _("Descendre"), "down"] : null,
+        ["mdi:arrow-collapse-down", _("Déplacer à la fin"), "end"],
+        m.uri ? ["mdi:playlist-plus", _("Ajouter à une playlist"), "addpl"] : null,
+        ["mdi:delete-outline", _("Retirer de la file"), "del", "danger"],
       ], async (k) => {
         if (k === "addpl") return setTimeout(() => this._addToPlaylist(m), 350);
         const c = this._qConn, qid = this._st().attributes.active_queue, id = it.queue_item_id;
@@ -815,7 +1011,7 @@
       const L = this._lib;
       if (L.type === "home" && !L.q) return this._loadHome();
       const entry = this._entry();
-      if (!entry) { this._libError("Intégration Music Assistant introuvable pour ce lecteur."); return; }
+      if (!entry) { this._libError(_("Intégration Music Assistant introuvable pour ce lecteur.")); return; }
       if (!more) { L.items = null; L.offset = 0; L.end = false; this._renderLib(); }
       const seq = (this._libSeq = (this._libSeq || 0) + 1);
       try {
@@ -848,7 +1044,7 @@
     }
     async _loadHome() {
       const L = this._lib, entry = this._entry();
-      if (!entry) return this._libError("Intégration Music Assistant introuvable pour ce lecteur.");
+      if (!entry) return this._libError(_("Intégration Music Assistant introuvable pour ce lecteur."));
       L.items = null;
       this._renderLib();
       const q = (media_type, extra) => this._svc("music_assistant", "get_library", { config_entry_id: entry, media_type, limit: 16, ...extra }, null, true).then((r) => (r && r.items) || []).catch(() => []);
@@ -857,34 +1053,34 @@
         q("album", { favorite: true, order_by: "random" }), q("radio", { favorite: true }), q("track", { order_by: "timestamp_added_desc" }),
       ]);
       L.home = [
-        ["Écouté récemment", recentAlb.concat(recentPl).slice(0, 16)],
-        ["Playlists favorites", favPl],
-        ["Albums coup de cœur", favAlb],
-        ["Radios", radios],
-        ["Ajouté récemment", recentTr.slice(0, 12)],
+        [_("Écouté récemment"), recentAlb.concat(recentPl).slice(0, 16)],
+        [_("Playlists favorites"), favPl],
+        [_("Albums coup de cœur"), favAlb],
+        [_("Radios"), radios],
+        [_("Ajouté récemment"), recentTr.slice(0, 12)],
       ].filter(([, l]) => l.length);
       L.items = [];
       this._renderLib();
     }
     _libError(msg) {
       const p = this.shadowRoot.getElementById("p-library");
-      if (p) p.innerHTML = this._libHead() + this._empty("mdi:alert-circle-outline", "Bibliothèque indisponible", msg);
+      if (p) p.innerHTML = this._libHead() + this._empty("mdi:alert-circle-outline", _("Bibliothèque indisponible"), msg);
       this._bindLib();
     }
     _libHead() {
       const L = this._lib;
       return `<div class="lhead">
-        <div class="search"><ha-icon icon="mdi:magnify"></ha-icon><input id="lq" type="search" placeholder="${L.global ? "Rechercher partout (tous les services)" : "Rechercher dans la bibliothèque"}" value="${esc(L.q)}">
-          <button class="gl${L.global ? " act" : ""}" data-l="global" title="Rechercher aussi sur les services de streaming"><ha-icon icon="mdi:earth"></ha-icon></button></div>
-        <div class="chips">${this._types().map((t) => `<button class="chip${L.type === t ? " on" : ""}" data-type="${t}"><ha-icon icon="${TYPES[t].icon}"></ha-icon>${TYPES[t].label}</button>`).join("")}</div>
-        ${L.type !== "home" && !(L.q && L.global) ? `<div class="filters"><button class="chip sm${L.fav ? " on" : ""}" data-l="fav"><ha-icon icon="mdi:heart"></ha-icon>Favoris</button>
-          <select id="lsort"><option value="">Tri par défaut</option>${Object.entries(SORTS).map(([k, v]) => `<option value="${k}"${L.sort === k ? " selected" : ""}>${v}</option>`).join("")}</select></div>` : ""}
+        <div class="search"><ha-icon icon="mdi:magnify"></ha-icon><input id="lq" type="search" placeholder="${L.global ? _("Rechercher partout (tous les services)") : _("Rechercher dans la bibliothèque")}" value="${esc(L.q)}">
+          <button class="gl${L.global ? " act" : ""}" data-l="global" title="${_("Rechercher aussi sur les services de streaming")}"><ha-icon icon="mdi:earth"></ha-icon></button></div>
+        <div class="chips">${this._types().map((t) => `<button class="chip${L.type === t ? " on" : ""}" data-type="${t}"><ha-icon icon="${TYPES[t].icon}"></ha-icon>${_(TYPES[t].label)}</button>`).join("")}</div>
+        ${L.type !== "home" && !(L.q && L.global) ? `<div class="filters"><button class="chip sm${L.fav ? " on" : ""}" data-l="fav"><ha-icon icon="mdi:heart"></ha-icon>${_("Favoris")}</button>
+          <select id="lsort"><option value="">${_("Tri par défaut")}</option>${Object.entries(SORTS).map(([k, v]) => `<option value="${k}"${L.sort === k ? " selected" : ""}>${_(v)}</option>`).join("")}</select></div>` : ""}
       </div>`;
     }
     _tile(it, i) {
       const round = it.media_type === "artist";
       const img = sized(it.image || (it.album && it.album.image), 300);
-      const sub = it.media_type === "album" ? `${artists(it)}${it.year ? ` · ${it.year}` : ""}` : it.media_type === "artist" ? "Artiste" : it.media_type === "playlist" ? (it.owner || "Playlist") : it.media_type === "radio" ? "Radio" : artists(it);
+      const sub = it.media_type === "album" ? `${artists(it)}${it.year ? ` · ${it.year}` : ""}` : it.media_type === "artist" ? _("Artiste") : it.media_type === "playlist" ? (it.owner || _("Playlist")) : it.media_type === "radio" ? _("Radio") : artists(it);
       return `<button class="tile${round ? " round" : ""}" data-i="${i}"><span class="cover">${img ? `<img src="${esc(img)}" loading="lazy" alt="">` : `<ha-icon icon="${(TYPES[it.media_type] || TYPES.track).icon}"></ha-icon>`}<span class="tplay" data-quick="1"><ha-icon icon="mdi:play"></ha-icon></span>${it.favorite ? `<ha-icon class="tfav" icon="mdi:heart"></ha-icon>` : ""}</span><b>${esc(it.name)}</b><small>${esc(sub)}</small></button>`;
     }
     _row(it, i) {
@@ -904,20 +1100,20 @@
           const start = this._libList.length;
           this._libList.push(...list);
           return `<div class="shelf"><h4>${title}</h4><div class="hscroll">${list.map((it, k) => this._tile(it, start + k)).join("")}</div></div>`;
-        }).join("") || this._empty("mdi:music-box-multiple-outline", "Votre bibliothèque est vide", "Ajoutez des services de musique dans Music Assistant");
+        }).join("") || this._empty("mdi:music-box-multiple-outline", _("Votre bibliothèque est vide"), _("Ajoutez des services de musique dans Music Assistant"));
       } else if (L.results) {
-        const groups = [["artists", "Artistes"], ["albums", "Albums"], ["tracks", "Titres"], ["playlists", "Playlists"], ["radio", "Radios"], ["podcasts", "Podcasts"], ["audiobooks", "Livres audio"]];
+        const groups = [["artists", _("Artistes")], ["albums", _("Albums")], ["tracks", _("Titres")], ["playlists", _("Playlists")], ["radio", _("Radios")], ["podcasts", _("Podcasts")], ["audiobooks", _("Livres audio")]];
         body = groups.map(([k, t]) => {
           const list = (L.results[k] || []);
           if (!list.length) return "";
           const start = this._libList.length;
           this._libList.push(...list);
           return k === "tracks" ? `<div class="shelf"><h4>${t}</h4>${list.slice(0, 12).map((it, j) => this._row(it, start + j)).join("")}</div>` : `<div class="shelf"><h4>${t}</h4><div class="hscroll">${list.map((it, j) => this._tile(it, start + j)).join("")}</div></div>`;
-        }).join("") || this._empty("mdi:magnify-close", "Aucun résultat", `pour « ${esc(L.q)} »`);
+        }).join("") || this._empty("mdi:magnify-close", _("Aucun résultat"), _("pour « {q} »", { q: esc(L.q) }));
       } else {
         this._libList = L.items;
-        body = !L.items.length ? this._empty("mdi:music-off", L.fav ? "Aucun favori" : "Rien ici", L.q ? `pour « ${esc(L.q)} »` : "") : L.type === "track" ? `<div class="rows">${L.items.map((it, i) => this._row(it, i)).join("")}</div>` : `<div class="grid">${L.items.map((it, i) => this._tile(it, i)).join("")}</div>`;
-        if (!L.end && L.items.length) body += `<button class="more" data-l="more">Afficher plus</button>`;
+        body = !L.items.length ? this._empty("mdi:music-off", L.fav ? _("Aucun favori") : _("Rien ici"), L.q ? _("pour « {q} »", { q: esc(L.q) }) : "") : L.type === "track" ? `<div class="rows">${L.items.map((it, i) => this._row(it, i)).join("")}</div>` : `<div class="grid">${L.items.map((it, i) => this._tile(it, i)).join("")}</div>`;
+        if (!L.end && L.items.length) body += `<button class="more" data-l="more">${_("Afficher plus")}</button>`;
       }
       p.innerHTML = this._libHead() + `<div class="lbody" id="lbody">${body}</div>`;
       this._bindLib();
@@ -989,13 +1185,13 @@
       const isArtist = it.media_type === "artist";
       const total = tracks.reduce((s, t) => s + (t.duration || 0), 0);
       let list = this._loading();
-      if (node.error) list = this._empty("mdi:alert-circle-outline", "Contenu indisponible", node.error);
+      if (node.error) list = this._empty("mdi:alert-circle-outline", _("Contenu indisponible"), node.error);
       else if (node.children) list = isArtist ? `<div class="grid">${tracks.map((t, i) => this._tile(t, i)).join("")}</div>` : `<div class="rows">${tracks.map((t, i) => `<button class="lrow" data-i="${i}"><span class="num">${i + 1}</span><span class="qt"><b>${esc(t.name)}</b><small>${esc(t.artist)}</small></span><span class="rmore" data-quick="more"><ha-icon icon="mdi:dots-vertical"></ha-icon></span></button>`).join("")}</div>`;
       p.innerHTML = `<div class="detail">
-        <button class="back" data-l="back"><ha-icon icon="mdi:arrow-left"></ha-icon>Retour</button>
+        <button class="back" data-l="back"><ha-icon icon="mdi:arrow-left"></ha-icon>${_("Retour")}</button>
         <div class="dhead${isArtist ? " artist" : ""}"><span class="dcover">${img ? `<img src="${esc(img)}" alt="">` : `<ha-icon icon="${TYPES[it.media_type] ? TYPES[it.media_type].icon : "mdi:music"}"></ha-icon>`}</span>
-          <div class="dinfo"><small>${esc((TYPES[it.media_type] || {}).label || "")}</small><h3>${esc(it.name)}</h3><p>${esc(isArtist ? "" : artists(it))}${it.year ? ` · ${it.year}` : ""}${node.children && !isArtist ? ` · ${tracks.length} titres` : ""}${total ? ` · ${fmt(total)}` : ""}</p>
-          <div class="dact"><button class="pbtn" data-d="play"><ha-icon icon="mdi:play"></ha-icon>Lire</button><button class="ibtn" data-d="shuffle" title="Lecture aléatoire"><ha-icon icon="mdi:shuffle-variant"></ha-icon></button><button class="ibtn" data-d="radio" title="Radio (titres similaires)"><ha-icon icon="mdi:radio-tower"></ha-icon></button><button class="ibtn" data-d="more" title="Plus d'options"><ha-icon icon="mdi:dots-horizontal"></ha-icon></button></div></div></div>
+          <div class="dinfo"><small>${esc(_((TYPES[it.media_type] || {}).label || "") || "")}</small><h3>${esc(it.name)}</h3><p>${esc(isArtist ? "" : artists(it))}${it.year ? ` · ${it.year}` : ""}${node.children && !isArtist ? ` · ${tracks.length} ${_("titres")}` : ""}${total ? ` · ${fmt(total)}` : ""}</p>
+          <div class="dact"><button class="pbtn" data-d="play"><ha-icon icon="mdi:play"></ha-icon>${_("Lire")}</button><button class="ibtn" data-d="shuffle" title="${_("Lecture aléatoire")}"><ha-icon icon="mdi:shuffle-variant"></ha-icon></button><button class="ibtn" data-d="radio" title="${_("Radio (titres similaires)")}"><ha-icon icon="mdi:radio-tower"></ha-icon></button><button class="ibtn" data-d="more" title="${_("Plus d'options")}"><ha-icon icon="mdi:dots-horizontal"></ha-icon></button></div></div></div>
         ${list}</div>`;
     }
     async _detailAction(k) {
@@ -1011,13 +1207,13 @@
     }
     _itemSheet(it) {
       const radioable = ["track", "artist", "album", "playlist"].includes(it.media_type);
-      this._sheet(it.name, artists(it) || (TYPES[it.media_type] || {}).label, [
-        ["mdi:play", "Lire maintenant", "play"],
-        ["mdi:playlist-play", "Lire ensuite", "next"],
-        ["mdi:playlist-plus", "Ajouter à la file", "add"],
-        ["mdi:playlist-remove", "Remplacer la file", "replace"],
-        radioable ? ["mdi:radio-tower", "Lancer une radio (titres similaires)", "radio"] : null,
-        ["album", "artist", "playlist"].includes(it.media_type) ? ["mdi:open-in-new", "Ouvrir", "open"] : null,
+      this._sheet(it.name, artists(it) || _((TYPES[it.media_type] || {}).label || ""), [
+        ["mdi:play", _("Lire maintenant"), "play"],
+        ["mdi:playlist-play", _("Lire ensuite"), "next"],
+        ["mdi:playlist-plus", _("Ajouter à la file"), "add"],
+        ["mdi:playlist-remove", _("Remplacer la file"), "replace"],
+        radioable ? ["mdi:radio-tower", _("Lancer une radio (titres similaires)"), "radio"] : null,
+        ["album", "artist", "playlist"].includes(it.media_type) ? ["mdi:open-in-new", _("Ouvrir"), "open"] : null,
       ], (k) => (k === "open" ? this._openDetail(it) : this._play(it, k === "radio" ? "play" : k, k === "radio")));
     }
     async _play(it, enqueue = "play", radio = false) {
@@ -1026,11 +1222,11 @@
       if (radio) data.radio_mode = true;
       try {
         await this._hass.callService("music_assistant", "play_media", data, { entity_id: this._player });
-        this._toast({ play: "Lecture…", replace: "Lecture…", next: "Lu ensuite", add: "Ajouté à la file", replace_next: "Ajouté" }[enqueue] || "OK");
+        this._toast({ play: _("Lecture…"), replace: _("Lecture…"), next: _("Lu ensuite"), add: _("Ajouté à la file"), replace_next: _("Ajouté") }[enqueue] || "OK");
         if (enqueue === "play" || enqueue === "replace") setTimeout(() => this._setTab("now"), 350);
         this._nextKey = null;
       } catch (e) {
-        this._toast(e.message || "Lecture impossible");
+        this._toast(e.message || _("Lecture impossible"));
       }
     }
 
@@ -1046,16 +1242,16 @@
         const pic = a.entity_picture_local || a.entity_picture;
         return `<div class="spk${active ? " active" : ""}${s.state === "playing" ? " playing" : ""}" data-id="${id}">
           <button class="spk-main" data-s="select"><span class="spk-ic">${pic ? `<img src="${esc(pic)}" alt="">` : `<ha-icon icon="${a.icon || "mdi:speaker"}"></ha-icon>`}${s.state === "playing" ? `<span class="eq on mini"><i></i><i></i><i></i></span>` : ""}</span>
-            <span class="qt"><b>${esc(a.friendly_name || id)}</b><small>${s.state === "playing" ? esc([a.media_title, a.media_artist].filter(Boolean).join(" · ")) : { idle: "Disponible", off: "Éteinte", paused: "En pause" }[s.state] || s.state}</small></span>
-            ${active ? `<span class="badge">Actif</span>` : ""}</button>
+            <span class="qt"><b>${esc(a.friendly_name || id)}</b><small>${s.state === "playing" ? esc([a.media_title, a.media_artist].filter(Boolean).join(" · ")) : { idle: _("Disponible"), off: _("Éteinte"), paused: _("En pause") }[s.state] || s.state}</small></span>
+            ${active ? `<span class="badge">${_("Actif")}</span>` : ""}</button>
           <div class="spk-ctl"><ha-icon icon="mdi:volume-medium"></ha-icon><input type="range" min="0" max="100" value="${vol}" data-s="vol" style="--v:${vol}%">
-          ${!active ? `<button class="mini-btn${grouped ? " on" : ""}" data-s="group" title="${grouped ? "Retirer du groupe" : "Écouter aussi ici"}"><ha-icon icon="${grouped ? "mdi:link-variant-off" : "mdi:link-variant-plus"}"></ha-icon></button><button class="mini-btn" data-s="transfer" title="Transférer la lecture ici"><ha-icon icon="mdi:swap-horizontal"></ha-icon></button>` : ""}</div></div>`;
+          ${!active ? `<button class="mini-btn${grouped ? " on" : ""}" data-s="group" title="${grouped ? _("Retirer du groupe") : _("Écouter aussi ici")}"><ha-icon icon="${grouped ? "mdi:link-variant-off" : "mdi:link-variant-plus"}"></ha-icon></button><button class="mini-btn" data-s="transfer" title="${_("Transférer la lecture ici")}"><ha-icon icon="mdi:swap-horizontal"></ha-icon></button>` : ""}</div></div>`;
       }).join("");
       const sig = list.map((id) => { const a = h.states[id]; return a.state + a.attributes.volume_level + a.attributes.media_title; }).join() + this._player + members.join();
       if (p.dataset.sig === sig) return;
       if (p.contains(this.shadowRoot.activeElement)) return;
       p.dataset.sig = sig;
-      p.innerHTML = `<header class="phead"><div><h3>Enceintes</h3><small>Choisissez, regroupez ou transférez la musique</small></div></header><div class="spks">${html || this._empty("mdi:speaker-off", "Aucune enceinte Music Assistant", "")}</div>`;
+      p.innerHTML = `<header class="phead"><div><h3>${_("Enceintes")}</h3><small>${_("Choisissez, regroupez ou transférez la musique")}</small></div></header><div class="spks">${html || this._empty("mdi:speaker-off", _("Aucune enceinte Music Assistant"), "")}</div>`;
       if (!p.dataset.bound) {
         p.dataset.bound = "1";
         p.addEventListener("click", (e) => this._spkClick(e));
@@ -1086,16 +1282,16 @@
           await this._hass.callService("music_assistant", "transfer_queue", { source_player: this._player, auto_play: true }, { entity_id: id });
           this._player = id;
           this._key = null;
-          this._toast("Lecture transférée");
+          this._toast(_("Lecture transférée"));
           return this._setTab("now");
         }
         if (b.dataset.s === "group") {
           const members = this._st().attributes.group_members || [];
           if (members.includes(id)) await this._hass.callService("media_player", "unjoin", { entity_id: id });
           else await this._hass.callService("media_player", "join", { entity_id: this._player, group_members: [id] });
-          this._toast(members.includes(id) ? "Enceinte retirée du groupe" : "Enceinte ajoutée au groupe");
+          this._toast(members.includes(id) ? _("Enceinte retirée du groupe") : _("Enceinte ajoutée au groupe"));
         }
-      } catch (err) { this._toast(err.message || "Action impossible"); }
+      } catch (err) { this._toast(err.message || _("Action impossible")); }
     }
 
     // ---------------- vue mini ----------------
@@ -1107,7 +1303,7 @@
         r.innerHTML = `<style>${HolmMusicCard.css()}</style><ha-card class="mini" id="mini"><div class="bg" id="bg"></div>
           <button class="m-open" id="mopen"><span class="m-art"><img id="martimg" alt=""><ha-icon icon="mdi:music"></ha-icon></span><span class="m-txt"><b id="mt"></b><small id="ma"></small></span></button>
           <div class="m-vol" id="mvol"><ha-icon icon="mdi:volume-high" id="mvolic"></ha-icon><input type="range" id="mvolr" min="0" max="100" step="1"></div>
-          <div class="m-btns">${this._config.mini_prev ? `<button data-act="prev" class="m-sm"><ha-icon icon="mdi:skip-previous"></ha-icon></button>` : ""}<button data-act="play" id="mplay" class="m-play"><ha-icon icon="mdi:play"></ha-icon></button><button data-act="next" class="m-sm"><ha-icon icon="mdi:skip-next"></ha-icon></button>${this._config.mini_volume ? `<button data-act="vol" class="m-sm" id="mvolb" title="Volume"><ha-icon icon="mdi:volume-high"></ha-icon></button>` : ""}</div>
+          <div class="m-btns">${this._config.mini_prev ? `<button data-act="prev" class="m-sm"><ha-icon icon="mdi:skip-previous"></ha-icon></button>` : ""}<button data-act="play" id="mplay" class="m-play"><ha-icon icon="mdi:play"></ha-icon></button><button data-act="next" class="m-sm"><ha-icon icon="mdi:skip-next"></ha-icon></button>${this._config.mini_volume ? `<button data-act="vol" class="m-sm" id="mvolb" title="${_("Volume")}"><ha-icon icon="mdi:volume-high"></ha-icon></button>` : ""}</div>
           <i class="m-bar" id="mbar"></i></ha-card>`;
         r.querySelector(".m-btns").addEventListener("click", (e) => { const b = e.target.closest("[data-act]"); if (b) this._act(b.dataset.act); });
         const vr = r.getElementById("mvolr");
@@ -1117,7 +1313,7 @@
       }
       if (!st) return;
       const a = st.attributes, playing = st.state === "playing";
-      r.getElementById("mt").textContent = a.media_title || (st.state === "off" ? "Enceinte éteinte" : "Rien en lecture");
+      r.getElementById("mt").textContent = a.media_title || (st.state === "off" ? _("Enceinte éteinte") : _("Rien en lecture"));
       r.getElementById("ma").textContent = [a.media_artist, a.friendly_name].filter(Boolean).join(" · ");
       r.getElementById("mplay").innerHTML = `<ha-icon icon="${playing ? "mdi:pause" : "mdi:play"}"></ha-icon>`;
       r.getElementById("mini").classList.toggle("playing", playing);
@@ -1166,7 +1362,7 @@
         if (!b) return;
         close();
         haptic();
-        try { await cb(b.dataset.k); } catch (err) { this._toast(err.message || "Action impossible"); }
+        try { await cb(b.dataset.k); } catch (err) { this._toast(err.message || _("Action impossible")); }
       };
     }
     _loading() { return `<div class="loading"><span></span><span></span><span></span></div>`; }
@@ -1445,7 +1641,7 @@
         .x { position: absolute; top: -48px; right: 4px; z-index: 10; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); background: rgba(20,28,36,.75); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #fff; display: grid; place-items: center; cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.4); transition: transform .2s; }
         .x:hover { transform: scale(1.08); } .x:active { transform: scale(.92); }
         @media (max-width: 600px) { :host { place-items: end center; } .box { width: 100vw; } .box holm-music-card { --ha-card-border-radius: 24px 24px 0 0; } }
-      </style><div class="scrim"></div><div class="box"><button class="x" title="Fermer"><ha-icon icon="mdi:close"></ha-icon></button></div>`;
+      </style><div class="scrim"></div><div class="box"><button class="x" title="${_("Fermer")}"><ha-icon icon="mdi:close"></ha-icon></button></div>`;
       const card = document.createElement("holm-music-card");
       const h = Math.min(720, Math.round(window.innerHeight * (window.innerWidth <= 600 ? 0.86 : 0.84)) - 8);
       card.setConfig({ ...config, height: h });
@@ -1476,6 +1672,7 @@
     }
     set hass(hass) {
       this._hass = hass;
+      const _l = setLang(hass, this._config); if (this._form && _l !== this._lang) { this._form.remove(); this._form = null; } this._lang = _l;
       if (!this._form) this._build();
       else this._form.hass = hass;
     }
@@ -1485,11 +1682,11 @@
       f.hass = this._hass;
       f.schema = [
         { name: "entity", required: true, selector: { entity: { filter: { domain: "media_player", integration: "music_assistant" } } } },
-        { name: "mode", selector: { select: { mode: "list", options: [{ value: "full", label: "Complet (lecture, file, bibliothèque, enceintes)" }, { value: "mini", label: "Mini (barre compacte, s'ouvre en grand au toucher)" }] } } },
-        { type: "expandable", name: "", title: "Apparence", icon: "mdi:palette-outline", schema: [
+        { name: "mode", selector: { select: { mode: "list", options: [{ value: "full", label: _("Complet (lecture, file, bibliothèque, enceintes)") }, { value: "mini", label: _("Mini (barre compacte, s'ouvre en grand au toucher)") }] } } },
+        { type: "expandable", name: "", title: _("Apparence"), icon: "mdi:palette-outline", schema: [
           { type: "grid", name: "", schema: [
-            { name: "artwork", selector: { select: { mode: "dropdown", options: [{ value: "square", label: "Pochette" }, { value: "vinyl", label: "Vinyle qui tourne" }] } } },
-            { name: "start_tab", selector: { select: { mode: "dropdown", options: [{ value: "now", label: "Lecture" }, { value: "queue", label: "File d'attente" }, { value: "library", label: "Bibliothèque" }, { value: "speakers", label: "Enceintes" }] } } },
+            { name: "artwork", selector: { select: { mode: "dropdown", options: [{ value: "square", label: _("Pochette") }, { value: "vinyl", label: _("Vinyle qui tourne") }] } } },
+            { name: "start_tab", selector: { select: { mode: "dropdown", options: [{ value: "now", label: _("Lecture") }, { value: "queue", label: _("File d'attente") }, { value: "library", label: _("Bibliothèque") }, { value: "speakers", label: _("Enceintes") }] } } },
           ] },
           { type: "grid", name: "", schema: [
             { name: "dynamic_color", selector: { boolean: {} } },
@@ -1497,41 +1694,42 @@
           ] },
           { name: "height", selector: { number: { min: 420, max: 1000, step: 10, mode: "slider", unit_of_measurement: "px" } } },
         ] },
-        { type: "expandable", name: "", title: "Vue mini", icon: "mdi:dock-bottom", schema: [
+        { type: "expandable", name: "", title: _("Vue mini"), icon: "mdi:dock-bottom", schema: [
           { type: "grid", name: "", schema: [
             { name: "mini_prev", selector: { boolean: {} } },
             { name: "mini_volume", selector: { boolean: {} } },
           ] },
         ] },
-        { type: "expandable", name: "", title: "Bibliothèque et enceintes", icon: "mdi:bookshelf", schema: [
+        { type: "expandable", name: "", title: _("Bibliothèque et enceintes"), icon: "mdi:bookshelf", schema: [
           { name: "library_types", selector: { select: { multiple: true, mode: "list", options: Object.entries(TYPES).map(([k, v]) => ({ value: k, label: v.label })) } } },
           { name: "show_players", selector: { boolean: {} } },
           { name: "players", selector: { entity: { multiple: true, filter: { domain: "media_player", integration: "music_assistant" } } } },
         ] },
-        { type: "expandable", name: "", title: "Serveur Music Assistant séparé (hors add-on)", icon: "mdi:link-variant", schema: [
+        { type: "expandable", name: "", title: _("Serveur Music Assistant séparé (hors add-on)"), icon: "mdi:link-variant", schema: [
           { name: "ma_url", selector: { text: { type: "url" } } },
           { name: "ma_token", selector: { text: { type: "password" } } },
         ] },
-        { type: "expandable", name: "", title: "Pochettes (avancé)", icon: "mdi:image-outline", schema: [
+        { type: "expandable", name: "", title: _("Pochettes (avancé)"), icon: "mdi:image-outline", schema: [
           { name: "ma_image_url", selector: { text: { type: "url" } } },
         ] },
       ];
       const L = {
-        entity: "Lecteur Music Assistant", mode: "Présentation", artwork: "Style de pochette", start_tab: "Onglet d'ouverture",
-        dynamic_color: "Couleurs tirées de la pochette", accent: "Couleur d'accent (par défaut)", height: "Hauteur de la carte",
-        library_types: "Rubriques de la bibliothèque", show_players: "Onglet Enceintes (multiroom)", players: "Enceintes proposées (vide = toutes)",
-        ma_url: "Adresse de Music Assistant (ex. http://192.168.1.10:8095)", ma_token: "Jeton d'accès Music Assistant",
-        ma_image_url: "Adresse HTTPS des images Music Assistant (facultatif)",
-        mini_prev: "Bouton Précédent", mini_volume: "Réglage du volume",
+        language: _("Langue"), entity: _("Lecteur Music Assistant"), mode: _("Présentation"), artwork: _("Style de pochette"), start_tab: _("Onglet d'ouverture"),
+        dynamic_color: _("Couleurs tirées de la pochette"), accent: _("Couleur d'accent (par défaut)"), height: _("Hauteur de la carte"),
+        library_types: _("Rubriques de la bibliothèque"), show_players: _("Onglet Enceintes (multiroom)"), players: _("Enceintes proposées (vide = toutes)"),
+        ma_url: _("Adresse de Music Assistant (ex. http://192.168.1.10:8095)"), ma_token: _("Jeton d'accès Music Assistant"),
+        ma_image_url: _("Adresse HTTPS des images Music Assistant (facultatif)"),
+        mini_prev: _("Bouton Précédent"), mini_volume: _("Réglage du volume"),
       };
       const H = {
-        ma_url: "Inutile avec l'add-on Music Assistant : la carte s'y connecte automatiquement via Home Assistant. À renseigner seulement pour un serveur séparé.",
-        ma_token: "Music Assistant → Paramètres → Profil → Jetons d'accès (serveur séparé uniquement).",
-        ma_image_url: "Inutile avec l'add-on Music Assistant (les pochettes passent automatiquement par Home Assistant). Sinon : l'adresse HTTPS de votre serveur Music Assistant, joignable par le navigateur.",
-        players: "Laissez vide pour proposer toutes les enceintes Music Assistant.",
+        ma_url: _("Inutile avec l'add-on Music Assistant : la carte s'y connecte automatiquement via Home Assistant. À renseigner seulement pour un serveur séparé."),
+        ma_token: _("Music Assistant → Paramètres → Profil → Jetons d'accès (serveur séparé uniquement)."),
+        ma_image_url: _("Inutile avec l'add-on Music Assistant (les pochettes passent automatiquement par Home Assistant). Sinon : l'adresse HTTPS de votre serveur Music Assistant, joignable par le navigateur."),
+        players: _("Laissez vide pour proposer toutes les enceintes Music Assistant."),
       };
-      f.computeLabel = (s) => L[s.name] || s.name;
-      f.computeHelper = (s) => H[s.name];
+      f.schema = locSchema([langField(), ...f.schema]);
+      f.computeLabel = (s) => (L[s.name] ? _(L[s.name]) : s.name);
+      f.computeHelper = (s) => (H[s.name] ? _(H[s.name]) : undefined);
       f.data = this._data();
       f.addEventListener("value-changed", (e) => {
         const v = { ...e.detail.value };
@@ -1550,7 +1748,8 @@
   if (!customElements.get("holm-music-card-editor")) customElements.define("holm-music-card-editor", HolmMusicCardEditor);
   window.customCards = window.customCards || [];
   if (!window.customCards.some((c) => c.type === "holm-music-card")) {
-    window.customCards.push({ type: "holm-music-card", name: "HOLM Musique", description: "Lecteur Music Assistant : lecture, file d'attente, bibliothèque, recherche, multiroom et vue mini.", preview: true });
+    setLang(document.querySelector("home-assistant")?.hass);
+    window.customCards.push({ type: "holm-music-card", name: _("HOLM Musique"), description: _("Lecteur Music Assistant : lecture, file d'attente, bibliothèque, recherche, multiroom et vue mini."), preview: true });
   }
   console.info(`%c HOLM-MUSIC %c ${VERSION} `, "background:#26c6da;color:#0b1016;border-radius:3px 0 0 3px", "background:#123;color:#fff;border-radius:0 3px 3px 0");
 })();

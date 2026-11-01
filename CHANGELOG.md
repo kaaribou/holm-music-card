@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0
+- **8 langues** : français, anglais, allemand, espagnol, italien, néerlandais, portugais et polonais, pour la carte et son éditeur visuel. Elle suit la langue du profil Home Assistant (anglais si la langue n'est pas traduite) ; nouvelle option `language`, aussi réglable dans l'éditeur.
+- README en anglais (`README.en.md`).
+
 ## 1.2.0
 - **Paroles** dans le lecteur agrandi (bouton micro en haut à droite) : synchronisées avec la musique quand Music Assistant les fournit, la ligne en cours s'illumine et un toucher sur une ligne y saute ; sinon paroles simples. (#4)
 - **Ajouter à une playlist** : bouton ➕ à côté du cœur pour ajouter le titre en cours à l'une de vos playlists modifiables, et entrée « Ajouter à une playlist » sur chaque titre de la file d'attente. (#1)

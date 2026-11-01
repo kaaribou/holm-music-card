@@ -5,6 +5,8 @@
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.1%2B-03a9f4)
 ![Music Assistant](https://img.shields.io/badge/Music%20Assistant-2.x-8a2be2)
 
+🇫🇷 Français · [🇬🇧 English](README.en.md)
+
 **Un lecteur Music Assistant moderne pour Home Assistant : la pochette en grand, les couleurs qui suivent la musique, votre bibliothèque et toutes vos enceintes dans une seule carte.**
 
 HOLM Music Card exploite **toutes les possibilités de [Music Assistant](https://music-assistant.io/)** : lecture en cours, file d'attente, bibliothèque complète avec recherche sur tous vos services, radios, podcasts, multiroom… Le fond et la couleur d'accent sont **tirés de la pochette**, les gestes sont naturels (glisser pour changer de titre, double-toucher pour ajouter aux favoris), et une **vue mini** permet de l'intégrer dans une barre ou un coin de tableau de bord.
@@ -32,6 +34,11 @@ HOLM Music Card exploite **toutes les possibilités de [Music Assistant](https:/
 **Vue mini**
 
 ![Vue mini](docs/images/mini.png)
+
+
+### 🆕 Nouveautés de la 1.3.0
+
+- 🌍 **La carte parle 8 langues** : français, anglais, allemand, espagnol, italien, néerlandais, portugais et polonais, éditeur compris. Elle suit la langue de votre profil Home Assistant (anglais si votre langue n'est pas traduite) ; l'option `language` permet d'en imposer une.
 
 ---
 
@@ -83,6 +90,7 @@ Ajoutez la carte **HOLM Musique** depuis le sélecteur de cartes, choisissez vot
 
 | Option | Description | Par défaut |
 |---|---|---|
+| `language` | Langue : `fr`, `en`, `de`, `es`, `it`, `nl`, `pt`, `pl` | celle du profil |
 | `entity` | Lecteur Music Assistant (**obligatoire**) | — |
 | `mode` | `full` (complet) ou `mini` (barre compacte) | `full` |
 | `artwork` | `square` (pochette) ou `vinyl` (vinyle qui tourne) | `square` |
@@ -169,6 +177,7 @@ players: [media_player.salon, media_player.cuisine, media_player.bureau]
 | La bibliothèque est vide | Vérifiez que Music Assistant a bien synchronisé vos services (dans l'interface de Music Assistant). |
 | Le favori ne fonctionne pas | Le titre doit venir d'un service qui accepte les favoris ; avec la connexion directe, l'ajout passe par Music Assistant. |
 | Pas de pochettes (carrés vides) | Avec l'add-on : rechargez la page. Sans l'add-on : renseignez `ma_image_url` (voir [Pochettes](#pochettes)). |
+| La carte n'est pas dans ma langue | Réglez `language` dans la carte, ou ouvrez une issue pour proposer une traduction. |
 | La nouvelle version ne s'affiche pas | Videz le cache (Ctrl + F5, ou « Recharger les ressources » dans l'application mobile). |
 
 ---
