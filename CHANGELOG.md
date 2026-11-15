@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1
+- **Recherche de la bibliothèque** : taper dans le champ ne lançait aucune recherche (#5). Le texte était lu après le délai de frappe, quand `e.target` ne désigne plus le champ mais la carte (shadow DOM), d'où une erreur silencieuse. Il est maintenant lu immédiatement.
+- Résultats de recherche sans doublons quand plusieurs fournisseurs renvoient le même élément.
+
 ## 1.3.0
 - **8 langues** : français, anglais, allemand, espagnol, italien, néerlandais, portugais et polonais, pour la carte et son éditeur visuel. Elle suit la langue du profil Home Assistant (anglais si la langue n'est pas traduite) ; nouvelle option `language`, aussi réglable dans l'éditeur.
 - README en anglais (`README.en.md`).

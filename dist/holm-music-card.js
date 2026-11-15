@@ -206,7 +206,7 @@
     if (o.selector && o.selector.select && o.name !== "language") o.selector = { ...o.selector, select: { ...o.selector.select, options: (o.selector.select.options || []).map((op) => (typeof op === "string" ? op : { ...op, label: _(op.label) })) } };
     if (o.name === "language" && o.selector && o.selector.select) o.selector = { ...o.selector, select: { ...o.selector.select, options: o.selector.select.options.map((op) => (op.value ? op : { ...op, label: _("Automatique (profil)") })) } };
     return o; });
-  const VERSION = "1.3.0";
+  const VERSION = "1.3.1";
   const TYPES = {
     home: { label: _("Accueil"), icon: "mdi:home-variant-outline" },
     playlist: { label: _("Playlists"), icon: "mdi:playlist-music" },
@@ -1021,7 +1021,11 @@
           if (seq !== this._libSeq) return;
           L.results = r;
           L.items = [];
-          ["artists", "albums", "tracks", "playlists", "radio", "podcasts", "audiobooks"].forEach((k) => (L.items = L.items.concat((r && r[k]) || [])));
+          const seen = new Set();   // un même élément peut revenir de plusieurs fournisseurs
+          ["artists", "albums", "tracks", "playlists", "radio", "podcasts", "audiobooks"].forEach((k) => ((r && r[k]) || []).forEach((it) => {
+            const key = `${it.media_type}|${String(it.name || "").toLowerCase()}|${artists(it).toLowerCase()}|${String((it.album && it.album.name) || "").toLowerCase()}`;
+            if (!seen.has(key)) { seen.add(key); L.items.push(it); }
+          }));
           L.end = true;
         } else {
           const data = { config_entry_id: entry, media_type: L.type, limit: 60, offset: L.offset || 0 };
@@ -1151,8 +1155,10 @@
       });
       p.addEventListener("input", (e) => {
         if (e.target.id !== "lq") return;
+        // le texte est lu tout de suite : après coup, e.target pointe sur la carte (shadow DOM), plus sur le champ
+        const v = e.target.value.trim();
         clearTimeout(this._qT2);
-        this._qT2 = setTimeout(() => { this._lib.q = e.target.value.trim(); this._lib.stack = []; this._loadLib(); }, 450);
+        this._qT2 = setTimeout(() => { this._lib.q = v; this._lib.stack = []; this._loadLib(); }, 450);
       });
       p.addEventListener("change", (e) => {
         if (e.target.id === "lsort") { this._lib.sort = e.target.value; this._loadLib(); }

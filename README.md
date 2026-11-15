@@ -36,7 +36,12 @@ HOLM Music Card exploite **toutes les possibilités de [Music Assistant](https:/
 ![Vue mini](docs/images/mini.png)
 
 
-### 🆕 Nouveautés de la 1.3.0
+### 🆕 Nouveautés de la 1.3.1
+
+- 🔎 **La recherche de la bibliothèque fonctionne de nouveau** ([#5](https://github.com/kaaribou/holm-music-card/issues/5)) : le texte tapé dans le champ de recherche n'était pas transmis à Music Assistant, si bien que rien ne se passait. Il l'est maintenant, dans la bibliothèque comme avec le globe (recherche sur tous les services).
+- 🧹 **Plus de doublons** dans les résultats de recherche quand plusieurs services renvoient le même élément.
+
+### Nouveautés de la 1.3.0
 
 - 🌍 **La carte parle 8 langues** : français, anglais, allemand, espagnol, italien, néerlandais, portugais et polonais, éditeur compris. Elle suit la langue de votre profil Home Assistant (anglais si votre langue n'est pas traduite) ; l'option `language` permet d'en imposer une.
 
@@ -174,6 +179,7 @@ players: [media_player.salon, media_player.cuisine, media_player.bureau]
 |---|---|
 | Aucun lecteur proposé dans l'éditeur | L'intégration **Music Assistant** doit être installée dans Home Assistant ; seuls ses lecteurs sont proposés. |
 | La file ne montre que 2 titres | Avec l'add-on : rechargez la page. Serveur séparé : renseignez l'adresse et le jeton Music Assistant. |
+| Taper dans la recherche de la bibliothèque ne fait rien | Corrigé en 1.3.1 : mettez la carte à jour et rechargez la page (Ctrl + F5). |
 | La bibliothèque est vide | Vérifiez que Music Assistant a bien synchronisé vos services (dans l'interface de Music Assistant). |
 | Le favori ne fonctionne pas | Le titre doit venir d'un service qui accepte les favoris ; avec la connexion directe, l'ajout passe par Music Assistant. |
 | Pas de pochettes (carrés vides) | Avec l'add-on : rechargez la page. Sans l'add-on : renseignez `ma_image_url` (voir [Pochettes](#pochettes)). |
@@ -195,4 +201,6 @@ Le lecteur vous plaît ? Vous pouvez m'offrir une bière 🍺
 Code sous licence **MIT** — © kaaribou. Voir le [CHANGELOG](CHANGELOG.md).
 Music Assistant est un projet indépendant ([music-assistant.io](https://music-assistant.io/)).
 
-Fait partie de la collection **HOLM** : [HOLM Navbar Card](https://github.com/kaaribou/holm-navbar-card) · [HOLM Sentinel Card](https://github.com/kaaribou/holm-sentinel-card) · [Carburant HOLM](https://github.com/kaaribou/carburant-holm).
+Fait partie de **HOLM — Home Orchestration & Living Management** : la gestion et l'orchestration intelligente de la maison.
+
+Les autres projets : [Volets HOLM](https://github.com/kaaribou/volets-holm) · [Climat HOLM](https://github.com/kaaribou/climat-holm) · [Carburant HOLM](https://github.com/kaaribou/carburant-holm) · [Commandes à la maison HOLM](https://github.com/kaaribou/commandes-holm) · [HOLM LaMetric](https://github.com/kaaribou/lametric-holm) · [HOLM My Menu](https://github.com/kaaribou/holm-mymenu) · [HOLM Lektrico](https://github.com/kaaribou/lektrico-holm) · [HOLM GitHub](https://github.com/kaaribou/github-holm) · [HOLM Cars](https://github.com/kaaribou/holm-cars) · [HOLM HP/HC](https://github.com/kaaribou/holm-tarif) · [HOLM Navbar Card](https://github.com/kaaribou/holm-navbar-card) · [HOLM Climate Card](https://github.com/kaaribou/climate-card-holm) · [HOLM Sentinel Card](https://github.com/kaaribou/holm-sentinel-card) · [HOLM Security Card](https://github.com/kaaribou/holm-security-card) · [HOLM Recordings Card](https://github.com/kaaribou/holm-recordings-card) · [HOLM Covers Card](https://github.com/kaaribou/holm-covers-card) · [HOLM Runtime Card](https://github.com/kaaribou/holm-runtime-card) · [HOLM Power Flow Card](https://github.com/kaaribou/holm-power-flow-card) · [HOLM Energy Cards](https://github.com/kaaribou/holm-energy-cards) · [HOLM Radiator Card](https://github.com/kaaribou/holm-radiator-card) · [HOLM Floor Card](https://github.com/kaaribou/holm-floor-card) · [HOLM Ecojoko Card](https://github.com/kaaribou/holm-ecojoko-card) · [HOLM Smoke Card](https://github.com/kaaribou/holm-smoke-card) · [HOLM Family Card](https://github.com/kaaribou/holm-family-card) · [HOLM Live Power Card](https://github.com/kaaribou/holm-live-power-card) · [HOLM Solar Optimizer Card](https://github.com/kaaribou/holm-solar-optimizer-card) · [HOLM Govee Light Card](https://github.com/kaaribou/holm-govee-light-card) · [HOLM Leapmotor Card](https://github.com/kaaribou/holm-leapmotor-card). · [HOLM Poubelles](https://github.com/kaaribou/holm-bins) · [HOLM FX](https://github.com/kaaribou/holm-fx-card) · [HOLM Theme Editor](https://github.com/kaaribou/holm-theme)
